@@ -1,51 +1,49 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Alert, Switch, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { api } from '../../src/lib/api';
 import { clearAuthAsync } from '../../src/store/auth.slice';
-import { AppDispatch } from '../../src/store';
+import { fetchProfile, updateProfile, linkWhatsApp, clearProfile } from '../../src/store/profile.slice';
+import { resetTransactions } from '../../src/store/transactions.slice';
+import { AppDispatch, RootState } from '../../src/store';
 import { colors, typography, borderRadii, spacing } from '../../src/constants/theme';
+import { MotiView } from 'moti';
+import { Easing } from 'react-native-reanimated';
+import { User, Smartphone, Mail, Fingerprint, Coins, Ghost, Key, Globe, ChevronRight, Edit2, LogOut, Database } from 'lucide-react-native';
 
 export default function ProfileScreen() {
-  const [profile, setProfile] = useState<any>(null);
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  const dispatch = useDispatch<AppDispatch>();
+  const { data: profile, loading, error: fetchError } = useSelector((state: RootState) => state.profile);
+  
+  const [name, setName] = useState(profile?.name || '');
+  const [phone, setPhone] = useState(profile?.phone_number || '');
   const [saving, setSaving] = useState(false);
   const [phoneSaving, setPhoneSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-  const dispatch = useDispatch<AppDispatch>();
+
+  // Mock switches for the new UI
+  const [faceId, setFaceId] = useState(true);
+  const [showCoins, setShowCoins] = useState(false);
+  const [incognito, setIncognito] = useState(false);
 
   useEffect(() => {
-    fetchProfile();
-  }, []);
+    dispatch(fetchProfile());
+  }, [dispatch]);
 
-  const fetchProfile = async () => {
-    setLoading(true);
-    setFetchError(null);
-    try {
-      const res = await api.get('/users/me');
-      setProfile(res.data.data);
-      if (res.data.data?.name) setName(res.data.data.name);
-      if (res.data.data?.phone_number) setPhone(res.data.data.phone_number);
-    } catch (e: any) {
-      console.log('Failed to fetch profile', e);
-      setFetchError(e.response?.data?.error || e.message || 'Failed to fetch profile');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Sync local state when profile changes
+  useEffect(() => {
+    if (profile?.name) setName(profile.name);
+    if (profile?.phone_number) setPhone(profile.phone_number);
+  }, [profile]);
 
   const handleSaveName = async () => {
     setSaving(true);
     try {
-      await api.patch('/users/me', { name });
+      await dispatch(updateProfile({ name })).unwrap();
       alert('Name updated successfully!');
-      fetchProfile();
-    } catch (e) {
-      alert('Failed to update name');
+    } catch (e: any) {
+      alert(e.message || 'Failed to update name');
     } finally {
       setSaving(false);
     }
@@ -56,13 +54,14 @@ export default function ProfileScreen() {
       alert('Please enter a valid phone number');
       return;
     }
+    if (!profile?.id) return;
+    
     setPhoneSaving(true);
     try {
-      await api.post('/auth/link-phone', { userId: profile?.id, phoneNumber: phone });
+      await dispatch(linkWhatsApp({ userId: profile.id, phoneNumber: phone })).unwrap();
       alert('WhatsApp Number linked successfully!');
-      fetchProfile();
     } catch (e: any) {
-      alert(e.response?.data?.error || 'Failed to link phone number');
+      alert(e.message || 'Failed to link phone number');
     } finally {
       setPhoneSaving(false);
     }
@@ -80,10 +79,10 @@ export default function ProfileScreen() {
           onPress: async () => {
             setResetting(true);
             try {
-              await api.delete('/transactions/reset');
+              await dispatch(resetTransactions()).unwrap();
               alert('Transactions reset.');
-            } catch (e) {
-              alert('Failed to reset.');
+            } catch (e: any) {
+              alert(e.message || 'Failed to reset.');
             } finally {
               setResetting(false);
             }
@@ -94,6 +93,7 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = async () => {
+    dispatch(clearProfile());
     await dispatch(clearAuthAsync());
   };
 
@@ -109,7 +109,7 @@ export default function ProfileScreen() {
     return (
       <SafeAreaView style={[styles.container, styles.center, { padding: spacing.xl }]}>
         <Text style={styles.errorText}>{fetchError}</Text>
-        <TouchableOpacity style={styles.btnRetry} onPress={fetchProfile}>
+        <TouchableOpacity style={styles.btnRetry} onPress={() => dispatch(fetchProfile())}>
           <Text style={styles.btnRetryText}>Retry</Text>
         </TouchableOpacity>
       </SafeAreaView>
@@ -117,92 +117,164 @@ export default function ProfileScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      
-      {/* Top Green Section */}
-      <View style={styles.topSection}>
-        <SafeAreaView edges={['top']}>
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Profile</Text>
-          </View>
-          
-          <View style={styles.profileInfoContainer}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>
-                {profile?.name ? profile.name.charAt(0).toUpperCase() : 'U'}
-              </Text>
-            </View>
-            <Text style={styles.profileName}>{profile?.name || 'User'}</Text>
-            <Text style={styles.profilePhone}>{profile?.phone_number || profile?.email || 'No contact info'}</Text>
-          </View>
-        </SafeAreaView>
-      </View>
-
-      {/* Bottom Black Section */}
-      <View style={styles.bottomSection}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           
-          {/* Combined Settings Group */}
-          <View style={styles.settingsGroup}>
+          {/* Top Section */}
+          <MotiView 
+            from={{ translateY: -50, opacity: 0 }}
+            animate={{ translateY: 0, opacity: 1 }}
+            transition={{ type: 'timing', duration: 400, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }}
+            style={styles.topSection}
+          >
+            <Text style={styles.headerTitle}>My account</Text>
             
-            {/* Name Row */}
-            <View style={styles.settingRow}>
-              <Text style={styles.rowLabel}>Name</Text>
-              <View style={styles.rowInputArea}>
-                <TextInput
-                  style={styles.inlineInput}
-                  value={name}
-                  onChangeText={setName}
-                  placeholder="Your name"
-                  placeholderTextColor={colors.textMuted}
-                />
-                <TouchableOpacity onPress={handleSaveName} disabled={saving} style={styles.inlineActionBtn}>
-                  <Text style={styles.inlineActionText}>Save</Text>
+            <View style={styles.profileInfoContainer}>
+              <View style={styles.avatarCircle}>
+                <Text style={styles.avatarText}>
+                  {profile?.name ? profile.name.charAt(0).toUpperCase() : 'U'}
+                </Text>
+                <TouchableOpacity style={styles.editBadge}>
+                  <Edit2 size={12} color={colors.primary} />
                 </TouchableOpacity>
               </View>
             </View>
+          </MotiView>
 
-            <View style={styles.divider} />
+          {/* Bottom Section */}
+          <MotiView 
+            from={{ opacity: 0, translateY: 50 }}
+            animate={{ opacity: 1, translateY: 0 }}
+            transition={{ type: 'timing', duration: 400, delay: 100, easing: Easing.out(Easing.ease) }}
+            style={styles.bottomSection}
+          >
+            {/* Personal Info Section */}
+            <Text style={styles.sectionTitle}>Personal info</Text>
+            
+            <View style={styles.settingsGroup}>
+              {/* Name Row */}
+              <View style={styles.settingRow}>
+                <User size={24} color={colors.primary} style={styles.rowIcon} />
+                <View style={styles.rowTextCol}>
+                  <Text style={styles.rowSubLabel}>Your name</Text>
+                  <TextInput
+                    style={styles.rowInput}
+                    value={name}
+                    onChangeText={setName}
+                    placeholder="Enter your name"
+                    placeholderTextColor={colors.textMuted}
+                    onBlur={handleSaveName}
+                  />
+                </View>
+                {saving ? <ActivityIndicator size="small" color={colors.primary} /> : <ChevronRight size={20} color={colors.textMuted} />}
+              </View>
 
-            {/* WhatsApp Row */}
-            <View style={styles.settingRow}>
-              <Text style={styles.rowLabel}>WhatsApp</Text>
-              <View style={styles.rowInputArea}>
-                <TextInput
-                  style={styles.inlineInput}
-                  value={phone}
-                  onChangeText={setPhone}
-                  placeholder="Enter ID"
-                  placeholderTextColor={colors.textMuted}
-                />
-                <TouchableOpacity onPress={handleLinkPhone} disabled={phoneSaving} style={styles.inlineActionBtn}>
-                  <Text style={styles.inlineActionText}>Link</Text>
-                </TouchableOpacity>
+              {/* Phone Row */}
+              <View style={styles.settingRow}>
+                <Smartphone size={24} color={colors.primary} style={styles.rowIcon} />
+                <View style={styles.rowTextCol}>
+                  <Text style={styles.rowSubLabel}>Phone number</Text>
+                  <TextInput
+                    style={styles.rowInput}
+                    value={phone}
+                    onChangeText={setPhone}
+                    placeholder="Enter phone number"
+                    placeholderTextColor={colors.textMuted}
+                    onBlur={handleLinkPhone}
+                  />
+                </View>
+                {phoneSaving ? <ActivityIndicator size="small" color={colors.primary} /> : <ChevronRight size={20} color={colors.textMuted} />}
+              </View>
+
+              {/* Email Row (Mock) */}
+              <View style={styles.settingRow}>
+                <Mail size={24} color={colors.primary} style={styles.rowIcon} />
+                <View style={styles.rowTextCol}>
+                  <Text style={styles.rowSubLabel}>Email address</Text>
+                  <Text style={styles.rowTextValue}>{profile?.email || 'user@example.com'}</Text>
+                </View>
+                <ChevronRight size={20} color={colors.textMuted} />
               </View>
             </View>
 
-            <View style={styles.divider} />
-
-            {/* Reset Row */}
-            <View style={styles.settingRow}>
-              <Text style={styles.rowLabel}>Data</Text>
-              <View style={[styles.rowInputArea, { justifyContent: 'flex-end' }]}>
-                <TouchableOpacity onPress={handleResetTransactions} disabled={resetting}>
-                  <Text style={styles.dangerActionText}>Reset Transactions</Text>
-                </TouchableOpacity>
+            {/* Settings Section */}
+            <Text style={styles.sectionTitle}>Settings</Text>
+            
+            <View style={styles.settingsGroup}>
+              <View style={styles.settingRow}>
+                <Fingerprint size={24} color={colors.primary} style={styles.rowIcon} />
+                <View style={styles.rowTextCol}>
+                  <Text style={styles.rowTextValue}>Allow Face ID</Text>
+                  <Text style={styles.rowSubLabel}>Use Face ID to enter into the app</Text>
+                </View>
+                <Switch value={faceId} onValueChange={setFaceId} trackColor={{ true: colors.accent, false: colors.cardLight }} />
               </View>
+
+              <View style={styles.settingRow}>
+                <Coins size={24} color={colors.primary} style={styles.rowIcon} />
+                <View style={styles.rowTextCol}>
+                  <Text style={styles.rowTextValue}>Showing Coins</Text>
+                  <Text style={styles.rowSubLabel}>Amounts in the format 00.00</Text>
+                </View>
+                <Switch value={showCoins} onValueChange={setShowCoins} trackColor={{ true: colors.accent, false: colors.cardLight }} />
+              </View>
+
+              <View style={styles.settingRow}>
+                <Ghost size={24} color={colors.primary} style={styles.rowIcon} />
+                <View style={styles.rowTextCol}>
+                  <Text style={styles.rowTextValue}>Incognito mode</Text>
+                  <Text style={styles.rowSubLabel}>The balance will be hidden</Text>
+                </View>
+                <Switch value={incognito} onValueChange={setIncognito} trackColor={{ true: colors.accent, false: colors.cardLight }} />
+              </View>
+              
+              <View style={styles.divider} />
+
+              <TouchableOpacity style={styles.settingRow}>
+                <Key size={24} color={colors.primary} style={styles.rowIcon} />
+                <View style={styles.rowTextCol}>
+                  <Text style={styles.rowTextValue}>Code to enter into the app</Text>
+                  <Text style={styles.rowSubLabel}>Change entrance code</Text>
+                </View>
+                <ChevronRight size={20} color={colors.textMuted} />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.settingRow}>
+                <Globe size={24} color={colors.primary} style={styles.rowIcon} />
+                <View style={styles.rowTextCol}>
+                  <Text style={styles.rowTextValue}>Language</Text>
+                  <Text style={styles.rowSubLabel}>English</Text>
+                </View>
+                <ChevronRight size={20} color={colors.textMuted} />
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.settingRow} onPress={handleResetTransactions}>
+                <Database size={24} color={colors.accentSecondary} style={styles.rowIcon} />
+                <View style={styles.rowTextCol}>
+                  <Text style={[styles.rowTextValue, { color: colors.accentSecondary }]}>Reset Data</Text>
+                  <Text style={styles.rowSubLabel}>Delete all transactions</Text>
+                </View>
+                {resetting ? <ActivityIndicator size="small" color={colors.accentSecondary} /> : <ChevronRight size={20} color={colors.textMuted} />}
+              </TouchableOpacity>
             </View>
-          </View>
 
-          {/* Minimal Logout */}
-          <TouchableOpacity style={styles.minimalLogoutBtn} onPress={handleLogout}>
-            <Text style={styles.minimalLogoutText}>Log Out</Text>
-          </TouchableOpacity>
+            {/* Logout */}
+            <MotiView
+               from={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               transition={{ type: 'timing', delay: 300, duration: 400, easing: Easing.inOut(Easing.ease) }}
+            >
+              <TouchableOpacity style={styles.minimalLogoutBtn} onPress={handleLogout}>
+                <LogOut size={20} color={colors.textMuted} style={{marginRight: 8}} />
+                <Text style={styles.minimalLogoutText}>Log Out</Text>
+              </TouchableOpacity>
+            </MotiView>
 
+          </MotiView>
         </ScrollView>
-      </View>
-
-    </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -211,113 +283,111 @@ const styles = StyleSheet.create({
   center: { justifyContent: 'center', alignItems: 'center' },
   
   topSection: { 
-    backgroundColor: colors.accent, 
-    borderBottomLeftRadius: borderRadii.xl,
-    borderBottomRightRadius: borderRadii.xl,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+    backgroundColor: colors.secondary,
   },
-  header: { marginTop: spacing.md, marginBottom: spacing.md },
-  headerTitle: { ...typography.bodyLarge, color: colors.secondary, fontWeight: 'bold' },
+  headerTitle: { ...typography.bodyLarge, color: colors.primary, fontWeight: '600', marginBottom: spacing.xl },
   
   profileInfoContainer: {
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
   avatarCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.secondary,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.accentSecondary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    position: 'relative',
   },
   avatarText: {
     ...typography.heading2,
     color: colors.primary,
   },
-  profileName: {
-    ...typography.heading3,
-    color: colors.secondary,
-    letterSpacing: -0.3,
-    marginBottom: 2,
-  },
-  profilePhone: {
-    ...typography.bodyMedium,
-    color: 'rgba(0,0,0,0.6)',
+  editBadge: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    backgroundColor: colors.cardDark,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.secondary,
   },
 
   bottomSection: { flex: 1 },
-  scrollContent: { padding: spacing.lg, paddingTop: spacing.xl, paddingBottom: 160 },
+  scrollContent: { paddingHorizontal: spacing.lg, paddingBottom: 100 },
   
   errorText: { color: colors.accentSecondary, ...typography.bodyLarge, marginBottom: spacing.xl, textAlign: 'center' },
   
-  // Combined Settings Group
+  sectionTitle: {
+    ...typography.label,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.lg,
+    marginBottom: spacing.lg,
+  },
+
   settingsGroup: {
-    backgroundColor: colors.cardDark,
+    backgroundColor: colors.secondary,
     borderRadius: borderRadii.lg,
+    borderWidth: 1,
+    borderColor: colors.cardDark,
     overflow: 'hidden',
   },
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    minHeight: 56,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.md,
   },
-  rowLabel: {
-    ...typography.bodyMedium,
-    color: colors.primary,
-    fontWeight: '500',
-    width: 80,
-  },
-  rowInputArea: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  inlineInput: {
-    flex: 1,
-    ...typography.bodyMedium,
-    color: colors.textMuted,
-    textAlign: 'right',
-    padding: 0,
+  rowIcon: {
     marginRight: spacing.md,
   },
-  inlineActionBtn: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: borderRadii.sm,
+  rowTextCol: {
+    flex: 1,
+    justifyContent: 'center',
   },
-  inlineActionText: {
-    ...typography.bodySmall,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  dangerActionText: {
-    ...typography.bodyMedium,
-    color: colors.accentSecondary,
+  rowSubLabel: {
+    ...typography.label,
+    color: colors.textMuted,
+    marginBottom: 4,
     fontWeight: '500',
+  },
+  rowTextValue: {
+    ...typography.bodyMedium,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  rowInput: {
+    ...typography.bodyMedium,
+    color: colors.primary,
+    fontWeight: '500',
+    padding: 0,
+    margin: 0,
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    marginLeft: spacing.lg,
+    backgroundColor: colors.cardDark,
+    marginLeft: 50,
   },
   
-  // Minimal Logout
   minimalLogoutBtn: {
-    marginTop: spacing.xl,
+    marginTop: spacing.xxl,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     padding: spacing.sm,
   },
   minimalLogoutText: { 
     color: colors.textMuted, 
     ...typography.bodyMedium, 
+    fontWeight: '600'
   },
 
   btnRetry: {

@@ -6,6 +6,9 @@ import { useDispatch } from 'react-redux';
 import { api } from '../../src/lib/api';
 import { setAuthAsync } from '../../src/store/auth.slice';
 import { AppDispatch } from '../../src/store';
+import { colors, typography, borderRadii, spacing } from '../../src/constants/theme';
+import { ChevronRight } from 'lucide-react-native';
+import { MotiView } from 'moti';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -39,64 +42,93 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>AI Finance</Text>
-        <Text style={styles.subtitle}>Sign in with your email</Text>
+      <MotiView
+        from={{ opacity: 0, translateY: 20 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'timing', duration: 500 }}
+        style={styles.content}
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>Welcome Back</Text>
+          <Text style={styles.subtitle}>Sign in to continue</Text>
+        </View>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Email Address"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          value={email}
-          onChangeText={(t) => { setEmail(t); setError(''); }}
-        />
+        <View style={styles.form}>
+          <TextInput
+            style={styles.input}
+            placeholder="Email Address"
+            placeholderTextColor={colors.textMuted}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            value={email}
+            onChangeText={(t) => { setEmail(t); setError(''); }}
+          />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          secureTextEntry
-          value={password}
-          onChangeText={(t) => { setPassword(t); setError(''); }}
-        />
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor={colors.textMuted}
+            secureTextEntry
+            value={password}
+            onChangeText={(t) => { setPassword(t); setError(''); }}
+          />
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Login</Text>
-          )}
+          <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator color={colors.secondary} />
+            ) : (
+              <>
+                <Text style={styles.buttonText}>Login</Text>
+                <ChevronRight color={colors.secondary} size={20} style={{ marginLeft: 8 }} />
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity onPress={() => router.push('/(auth)/register')} style={styles.linkButton}>
+          <Text style={styles.linkText}>Don't have an account? <Text style={{ color: colors.accent, fontWeight: 'bold' }}>Register</Text></Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.push('/(auth)/register')} style={{ marginTop: 24, alignItems: 'center' }}>
-          <Text style={{ color: '#3B82F6', fontSize: 16 }}>Don't have an account? Register</Text>
-        </TouchableOpacity>
-      </View>
+      </MotiView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  content: { flex: 1, padding: 24, justifyContent: 'center' },
-  title: { fontSize: 32, fontWeight: 'bold', color: '#111827', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#6B7280', marginBottom: 32 },
+  container: { flex: 1, backgroundColor: colors.secondary },
+  content: { flex: 1, padding: spacing.xl, justifyContent: 'center' },
+  
+  header: { marginBottom: spacing.xxl },
+  title: { ...typography.heading1, color: colors.primary, marginBottom: spacing.sm, fontWeight: '700', letterSpacing: -1 },
+  subtitle: { ...typography.bodyLarge, color: colors.textMuted },
+  
+  form: { marginBottom: spacing.xl },
   input: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: borderRadii.md,
+    padding: spacing.lg,
+    ...typography.bodyLarge,
+    color: colors.primary,
+    marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 16,
-    fontSize: 18,
-    marginBottom: 16,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
-  error: { color: '#EF4444', marginBottom: 16, textAlign: 'center' },
+  
+  error: { color: colors.accentSecondary, marginBottom: spacing.md, textAlign: 'center', ...typography.bodyMedium },
+  
   button: {
-    backgroundColor: '#3B82F6',
-    padding: 16,
-    borderRadius: 8,
+    backgroundColor: colors.accent,
+    padding: spacing.lg,
+    borderRadius: borderRadii.pill,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.md,
   },
-  buttonText: { color: '#fff', fontSize: 18, fontWeight: '600' },
+  buttonText: { color: colors.secondary, ...typography.bodyLarge, fontWeight: '700' },
+  
+  linkButton: { marginTop: spacing.xl, alignItems: 'center' },
+  linkText: { color: colors.textMuted, ...typography.bodyMedium },
 });

@@ -8,6 +8,8 @@ import { colors, typography, borderRadii, spacing } from '../../src/constants/th
 import { IconButton } from '../../src/components/ui/IconButton';
 import { ProgressBar } from '../../src/components/ui/ProgressBar';
 import { formatCurrency, getCurrencySymbol } from '../../src/lib/format';
+import { MotiView } from 'moti';
+import { Easing } from 'react-native-reanimated';
 
 export default function AnalyticsScreen() {
   const [selectedDate, setSelectedDate] = useState(getDate(new Date()));
@@ -71,15 +73,25 @@ export default function AnalyticsScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
         {/* Header */}
-        <View style={styles.header}>
+        <MotiView 
+          from={{ opacity: 0, translateY: -20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 400, easing: Easing.out(Easing.ease) }}
+          style={styles.header}
+        >
           <View style={styles.monthPill}>
             <Text style={styles.monthText}>{format(currentMonth, 'MMMM')}</Text>
             <ChevronDown size={16} color={colors.textLight} style={{marginLeft: 4}} />
           </View>
-        </View>
+        </MotiView>
 
         {/* Calendar Grid */}
-        <View style={styles.calendarContainer}>
+        <MotiView 
+          from={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'timing', duration: 400, delay: 100, easing: Easing.out(Easing.ease) }}
+          style={styles.calendarContainer}
+        >
           <View style={styles.weekDaysRow}>
             {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
               <Text key={i} style={styles.weekDayText}>{day}</Text>
@@ -113,31 +125,46 @@ export default function AnalyticsScreen() {
               );
             })}
           </View>
-        </View>
+        </MotiView>
 
         {/* Selected Date Details */}
-        <View style={styles.dateDetailsRow}>
+        <MotiView 
+          from={{ opacity: 0, translateY: 30 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 400, delay: 200, easing: Easing.out(Easing.ease) }}
+          style={styles.dateDetailsRow}
+        >
            <Text style={styles.dateLarge}>{selectedDate} {format(currentMonth, 'MMMM')}</Text>
            {dailySpent > 0 && (
               <View style={styles.percentBadge}><Text style={styles.percentBadgeText}>Active</Text></View>
            )}
            <View style={{flex: 1}} />
            <MoreHorizontal size={24} color={colors.textLight} />
-        </View>
+        </MotiView>
 
         {/* Financial Progress Bars */}
-        <View style={styles.progressSection}>
+        <MotiView 
+          from={{ opacity: 0, translateY: 30 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 400, delay: 300, easing: Easing.out(Easing.ease) }}
+          style={styles.progressSection}
+        >
           <View style={styles.progressRowHeader}>
             <Text style={styles.progressTitle}>Financial</Text>
             <Text style={styles.progressSub}>of {formatCurrency(limit, baseCurrency)} spent</Text>
           </View>
           <ProgressBar progress={totalSpent/limit || 0} height={16} fillColor={colors.secondary} trackColor={colors.cardLight} />
-        </View>
+        </MotiView>
 
       </ScrollView>
 
       {/* Bottom Sheet Card */}
-      <View style={styles.bottomCard}>
+      <MotiView 
+        from={{ opacity: 0, translateY: 100 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'timing', duration: 500, delay: 400, easing: Easing.out(Easing.ease) }}
+        style={styles.bottomCard}
+      >
          <View style={styles.bottomCardHeader}>
             <View style={styles.bottomCardTitleRow}>
                <CalendarIcon size={20} color={colors.textDark} />
@@ -162,7 +189,7 @@ export default function AnalyticsScreen() {
                 </View>
             </View>
          )}
-      </View>
+      </MotiView>
     </SafeAreaView>
   );
 }

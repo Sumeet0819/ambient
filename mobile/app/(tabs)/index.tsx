@@ -1,33 +1,41 @@
 import { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useDispatch, useSelector } from 'react-redux';
 import { format, isToday, isYesterday } from 'date-fns';
-import { ChevronLeft, Grid, MoreHorizontal, ArrowUpRight, ArrowDownRight, Coffee, Wallet, Car, Plus } from 'lucide-react-native';
+import { ChevronLeft, Grid, MoreHorizontal, ArrowUpRight, ArrowDownRight, Search } from 'lucide-react-native';
 import { api } from '../../src/lib/api';
+import { fetchTransactions } from '../../src/store/transactions.slice';
+import { AppDispatch, RootState } from '../../src/store';
 import { colors, typography, borderRadii, spacing } from '../../src/constants/theme';
 import { IconButton } from '../../src/components/ui/IconButton';
 import { ProgressBar } from '../../src/components/ui/ProgressBar';
 import { formatCurrency, getCurrencySymbol } from '../../src/lib/format';
+import { MotiView } from 'moti';
+import { Easing } from 'react-native-reanimated';
 
 export default function TransactionsScreen() {
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch<AppDispatch>();
+  const { items: transactions, loading } = useSelector((state: RootState) => state.transactions);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [summary, setSummary] = useState<any>(null);
 
   const fetchData = useCallback(async () => {
+    dispatch(fetchTransactions({}));
     try {
-      const [txRes, sumRes] = await Promise.all([
-        api.get('/transactions'),
+      const [catRes, sumRes] = await Promise.all([
+        api.get('/categories'),
         api.get(`/analytics/monthly?month=${format(new Date(), 'yyyy-MM')}`)
       ]);
-      setTransactions(txRes.data.data);
+      setCategories(catRes.data.data);
       setSummary(sumRes.data.data);
-    } catch (error) {
-      console.error('Failed to fetch data:', error);
-    } finally {
-      setLoading(false);
+    } catch (e) {
+      console.log('Failed to fetch auxiliary data', e);
     }
-  }, []);
+  }, [dispatch]);
+
+
 
   useEffect(() => {
     fetchData();
@@ -37,11 +45,14 @@ export default function TransactionsScreen() {
   const baseCurrency = transactions.length > 0 ? (transactions[0].currency || 'INR') : 'INR';
   const currencySymbol = getCurrencySymbol(baseCurrency);
 
-  // Derive limit dynamically if possible. Assuming 50k as a default limit if none provided.
   const limit = summary?.monthlyLimit || 50000;
   const spent = summary?.totalExpense || 0;
   const progress = Math.min(spent / limit, 1);
   const percentage = Math.round(progress * 100) || 0;
+
+  const filteredTransactions = selectedCategory
+    ? transactions.filter(t => t.category_id === selectedCategory)
+    : transactions;
 
   const renderItem = ({ item }: { item: any }) => {
     const isExpense = item.type === 'expense';
@@ -56,7 +67,12 @@ export default function TransactionsScreen() {
     const decimalAmount = splitIndex !== -1 ? formattedAmount.substring(splitIndex) : '.00';
 
     return (
-      <View style={styles.txnRow}>
+      <MotiView 
+        from={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ type: 'timing', duration: 400, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }}
+        style={styles.txnRow}
+      >
         <View style={styles.txnDot} />
         <View style={styles.txnContent}>
           <Text style={styles.txnAmount}>
@@ -74,14 +90,19 @@ export default function TransactionsScreen() {
              {isExpense ? <ArrowUpRight size={16} color={colors.textDark} /> : <ArrowDownRight size={16} color={colors.textDark} />}
           </View>
         </View>
-      </View>
+      </MotiView>
     );
   };
 
   return (
     <View style={styles.container}>
       {/* Top Green Section */}
-      <View style={styles.topSection}>
+      <MotiView 
+        from={{ translateY: -100, opacity: 0 }}
+        animate={{ translateY: 0, opacity: 1 }}
+        transition={{ type: 'timing', duration: 500, easing: Easing.out(Easing.ease) }}
+        style={styles.topSection}
+      >
         <SafeAreaView edges={['top']}>
           <View style={styles.header}>
              <View style={styles.headerLeft}>
@@ -105,17 +126,45 @@ export default function TransactionsScreen() {
             />
           </View>
         </SafeAreaView>
-      </View>
+      </MotiView>
 
       {/* Bottom Black Section */}
-      <View style={styles.bottomSection}>
+      <MotiView 
+        from={{ opacity: 0, translateY: 50 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'timing', duration: 500, delay: 150, easing: Easing.out(Easing.ease) }}
+        style={styles.bottomSection}
+      >
         <View style={styles.historyHeader}>
            <Text style={styles.historyTitle}>Expenses History</Text>
            <TouchableOpacity><MoreHorizontal size={24} color={colors.textMuted} /></TouchableOpacity>
         </View>
+
+        {/* Filter Pills */}
+        <View style={styles.filterPillsContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterPillsScroll}>
+            <TouchableOpacity
+              style={[styles.filterPill, !selectedCategory && styles.filterPillActive]}
+              onPress={() => setSelectedCategory(null)}
+            >
+              <Text style={[styles.filterPillText, !selectedCategory && styles.filterPillTextActive]}>All</Text>
+            </TouchableOpacity>
+            {categories.map((cat) => (
+              <TouchableOpacity
+                key={cat.id}
+                style={[styles.filterPill, selectedCategory === cat.id && styles.filterPillActive]}
+                onPress={() => setSelectedCategory(cat.id)}
+              >
+                <Text style={[styles.filterPillText, selectedCategory === cat.id && styles.filterPillTextActive]}>
+                  {cat.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
         
         <FlatList
-          data={transactions}
+          data={filteredTransactions}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
@@ -125,8 +174,7 @@ export default function TransactionsScreen() {
           ListEmptyComponent={<Text style={{color: colors.textMuted, textAlign: 'center', marginTop: 20}}>No transactions found</Text>}
         />
 
-
-      </View>
+      </MotiView>
     </View>
   );
 }
@@ -163,5 +211,26 @@ const styles = StyleSheet.create({
   txnRight: { alignItems: 'flex-end', justifyContent: 'space-between', height: 48 },
   txnDate: { ...typography.bodyMedium, color: colors.textMuted },
   txnIconBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: colors.cardDark, justifyContent: 'center', alignItems: 'center' },
-
+  filterPillsContainer: { marginBottom: spacing.md },
+  filterPillsScroll: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, gap: spacing.sm },
+  filterPill: { 
+    paddingHorizontal: spacing.lg, 
+    paddingVertical: spacing.sm, 
+    borderRadius: borderRadii.pill, 
+    backgroundColor: 'transparent', 
+    borderWidth: 1.5, 
+    borderColor: colors.cardDark,
+  },
+  filterPillActive: { 
+    backgroundColor: colors.accent, 
+    borderColor: colors.accent,
+  },
+  filterPillText: { 
+    color: colors.primary, 
+    fontSize: 15, 
+    fontWeight: '600' 
+  },
+  filterPillTextActive: { 
+    color: colors.textLight 
+  }
 });

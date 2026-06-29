@@ -1,5 +1,6 @@
-import { Slot, useRouter, useSegments } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import { store, RootState, AppDispatch } from '../src/store';
 import { hydrateAuth } from '../src/store/auth.slice';
@@ -27,9 +28,20 @@ function RootLayoutInner() {
     }
   }, [token, isReady, segments, router]);
 
-  if (!isReady) return null;
+  if (!isReady) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ fontSize: 48, fontWeight: 'bold', color: '#20D770', letterSpacing: -1, marginBottom: 24 }}>
+          AI Finance
+        </Text>
+        <ActivityIndicator color="#20D770" size="large" />
+      </View>
+    );
+  }
 
-  return <Slot />;
+  return (
+    <Stack screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#000000' } }} />
+  );
 }
 
 export default function RootLayout() {

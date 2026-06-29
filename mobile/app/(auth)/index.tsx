@@ -6,11 +6,13 @@ import { useDispatch } from 'react-redux';
 import { api } from '../../src/lib/api';
 import { setAuthAsync } from '../../src/store/auth.slice';
 import { AppDispatch } from '../../src/store';
-import { colors, typography, borderRadii, spacing } from '../../src/constants/theme';
+import { typography, borderRadii, spacing, useThemeColors } from '../../src/constants/theme';
 import { ChevronRight } from 'lucide-react-native';
 import { MotiView } from 'moti';
 
 export default function LoginScreen() {
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -96,7 +98,7 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.secondary },
   content: { flex: 1, padding: spacing.xl, justifyContent: 'center' },
   

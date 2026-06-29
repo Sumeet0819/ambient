@@ -1,4 +1,7 @@
-export const colors = {
+import { useSelector } from 'react-redux';
+import { RootState } from '../store';
+
+export const darkColors = {
   primary: '#FFFFFF', // Main dashboard background
   secondary: '#000000', // History/Analytics background
   accent: '#20D770', // Primary Neon Green
@@ -8,6 +11,26 @@ export const colors = {
   textLight: '#000000', // Text on light backgrounds
   textDark: '#FFFFFF', // Text on dark backgrounds
   textMuted: '#8E8E93',
+};
+
+export const lightColors = {
+  primary: '#000000', // Was white
+  secondary: '#FFFFFF', // Was black
+  accent: '#20D770', 
+  accentSecondary: '#FF6B6B',
+  cardLight: '#1C1C1E', // inverted
+  cardDark: '#F5F5F5', // inverted
+  textLight: '#FFFFFF', 
+  textDark: '#000000', 
+  textMuted: '#6E6E73',
+};
+
+// Fallback for files that still import colors directly (if any)
+export const colors = darkColors;
+
+export const useThemeColors = () => {
+  const isLightMode = useSelector((state: RootState) => state.settings.isLightMode);
+  return isLightMode ? lightColors : darkColors;
 };
 
 export const typography = {

@@ -7,7 +7,7 @@ import { ChevronLeft, Grid, MoreHorizontal, ArrowUpRight, ArrowDownRight, Search
 import { api } from '../../src/lib/api';
 import { fetchTransactions } from '../../src/store/transactions.slice';
 import { AppDispatch, RootState } from '../../src/store';
-import { colors, typography, borderRadii, spacing } from '../../src/constants/theme';
+import { typography, borderRadii, spacing, useThemeColors } from '../../src/constants/theme';
 import { IconButton } from '../../src/components/ui/IconButton';
 import { ProgressBar } from '../../src/components/ui/ProgressBar';
 import { formatCurrency, getCurrencySymbol } from '../../src/lib/format';
@@ -15,6 +15,8 @@ import { MotiView } from 'moti';
 import { Easing } from 'react-native-reanimated';
 
 export default function TransactionsScreen() {
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
   const dispatch = useDispatch<AppDispatch>();
   const { items: transactions, loading } = useSelector((state: RootState) => state.transactions);
   const [categories, setCategories] = useState<any[]>([]);
@@ -57,7 +59,7 @@ export default function TransactionsScreen() {
   const availDecimal = availSplitIndex !== -1 ? formattedAvailable.substring(availSplitIndex) : '.00';
 
   const filteredTransactions = selectedCategory
-    ? transactions.filter(t => t.category_id === selectedCategory)
+    ? transactions.filter(t => t.categories?.name === selectedCategory)
     : transactions;
 
   const renderItem = ({ item }: { item: any }) => {
@@ -166,10 +168,10 @@ export default function TransactionsScreen() {
             {categories.map((cat) => (
               <TouchableOpacity
                 key={cat.id}
-                style={[styles.filterPill, selectedCategory === cat.id && styles.filterPillActive]}
-                onPress={() => setSelectedCategory(cat.id)}
+                style={[styles.filterPill, selectedCategory === cat.name && styles.filterPillActive]}
+                onPress={() => setSelectedCategory(cat.name)}
               >
-                <Text style={[styles.filterPillText, selectedCategory === cat.id && styles.filterPillTextActive]}>
+                <Text style={[styles.filterPillText, selectedCategory === cat.name && styles.filterPillTextActive]}>
                   {cat.name}
                 </Text>
               </TouchableOpacity>
@@ -193,7 +195,7 @@ export default function TransactionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.secondary },
   topSection: { 
     backgroundColor: colors.accent, 

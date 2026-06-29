@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, ChevronDown, MoreHorizontal, Calendar as CalendarIcon, Upload, ArrowUpRight } from 'lucide-react-native';
 import { format, getDate, getDaysInMonth, startOfMonth, getDay } from 'date-fns';
 import { api } from '../../src/lib/api';
-import { colors, typography, borderRadii, spacing } from '../../src/constants/theme';
+import { typography, borderRadii, spacing, useThemeColors } from '../../src/constants/theme';
 import { IconButton } from '../../src/components/ui/IconButton';
 import { ProgressBar } from '../../src/components/ui/ProgressBar';
 import { formatCurrency, getCurrencySymbol } from '../../src/lib/format';
@@ -12,6 +12,8 @@ import { MotiView } from 'moti';
 import { Easing } from 'react-native-reanimated';
 
 export default function AnalyticsScreen() {
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
   const [selectedDate, setSelectedDate] = useState(getDate(new Date()));
   const [transactions, setTransactions] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
@@ -69,7 +71,7 @@ export default function AnalyticsScreen() {
   const dailyFormatted = formatAmountSplit(dailySpent);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
         {/* Header */}
@@ -194,7 +196,7 @@ export default function AnalyticsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.primary },
   scrollContent: { paddingHorizontal: spacing.lg, paddingBottom: 220 }, // Space for bottom card
   

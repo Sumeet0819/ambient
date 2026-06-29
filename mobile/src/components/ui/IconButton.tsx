@@ -1,7 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
 import { LucideIcon } from 'lucide-react-native';
-import { colors, borderRadii } from '../../constants/theme';
+import { borderRadii, useThemeColors } from '../../constants/theme';
 
 interface IconButtonProps {
   icon: LucideIcon;
@@ -20,6 +20,8 @@ export const IconButton: React.FC<IconButtonProps> = ({
   onPress,
   style,
 }) => {
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
   let backgroundColor = colors.secondary;
   let iconColor = colors.primary;
 
@@ -58,7 +60,7 @@ export const IconButton: React.FC<IconButtonProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   button: {
     justifyContent: 'center',
     alignItems: 'center',

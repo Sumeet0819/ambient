@@ -6,14 +6,18 @@ import { api } from '../../src/lib/api';
 import { clearAuthAsync } from '../../src/store/auth.slice';
 import { fetchProfile, updateProfile, linkWhatsApp, clearProfile } from '../../src/store/profile.slice';
 import { resetTransactions } from '../../src/store/transactions.slice';
+import { setLightMode } from '../../src/store/settings.slice';
 import { AppDispatch, RootState } from '../../src/store';
-import { colors, typography, borderRadii, spacing } from '../../src/constants/theme';
+import { typography, borderRadii, spacing, useThemeColors } from '../../src/constants/theme';
 import { MotiView } from 'moti';
 import { Easing } from 'react-native-reanimated';
-import { User, Smartphone, Mail, Fingerprint, Coins, Ghost, Key, Globe, ChevronRight, Edit2, LogOut, Database } from 'lucide-react-native';
+import { User, Smartphone, Mail, Fingerprint, Coins, Ghost, Key, Globe, ChevronRight, Edit2, LogOut, Database, Sun } from 'lucide-react-native';
 
 export default function ProfileScreen() {
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
   const dispatch = useDispatch<AppDispatch>();
+  const isLightMode = useSelector((state: RootState) => state.settings.isLightMode);
   const { data: profile, loading, error: fetchError } = useSelector((state: RootState) => state.profile);
   
   const [name, setName] = useState(profile?.name || '');
@@ -228,6 +232,15 @@ export default function ProfileScreen() {
                 </View>
                 <Switch value={incognito} onValueChange={setIncognito} trackColor={{ true: colors.accent, false: colors.cardLight }} />
               </View>
+
+              <View style={styles.settingRow}>
+                <Sun size={24} color={colors.primary} style={styles.rowIcon} />
+                <View style={styles.rowTextCol}>
+                  <Text style={styles.rowTextValue}>Light Mode</Text>
+                  <Text style={styles.rowSubLabel}>Switch to bright colors</Text>
+                </View>
+                <Switch value={isLightMode} onValueChange={(val) => dispatch(setLightMode(val))} trackColor={{ true: colors.accent, false: colors.cardLight }} />
+              </View>
               
               <View style={styles.divider} />
 
@@ -278,7 +291,7 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.secondary },
   center: { justifyContent: 'center', alignItems: 'center' },
   

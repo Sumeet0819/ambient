@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import Svg, { Path, Defs, Pattern, Rect } from 'react-native-svg';
-import { colors } from '../../constants/theme';
+import { useThemeColors } from '../../constants/theme';
 
 interface GaugeChartProps {
   progress: number; // 0 to 1
@@ -14,6 +14,7 @@ export const GaugeChart: React.FC<GaugeChartProps> = ({
   size = 200,
   strokeWidth = 30,
 }) => {
+  const colors = useThemeColors();
   const radius = (size - strokeWidth) / 2;
   const center = size / 2;
   // Use a semi-circle from 180 to 0 degrees

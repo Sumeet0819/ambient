@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
-import { colors, borderRadii } from '../../constants/theme';
+import { borderRadii, useThemeColors } from '../../constants/theme';
 
 interface NeoCardProps {
   children: React.ReactNode;
@@ -13,6 +13,8 @@ export const NeoCard: React.FC<NeoCardProps> = ({
   variant = 'white',
   style,
 }) => {
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
   let backgroundColor = colors.primary;
   switch (variant) {
     case 'black':
@@ -33,7 +35,7 @@ export const NeoCard: React.FC<NeoCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   card: {
     borderRadius: borderRadii.xl,
     padding: 24,

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
-import { colors, borderRadii } from '../../constants/theme';
+import { borderRadii, useThemeColors } from '../../constants/theme';
 import Svg, { Defs, Pattern, Path, Rect, Circle } from 'react-native-svg';
 import { MotiView } from 'moti';
 import { Easing } from 'react-native-reanimated';
@@ -27,16 +27,21 @@ const GAS_BUBBLES = [
 
 export const ProgressBar: React.FC<ProgressBarProps> = ({
   progress,
-  fillColor = colors.secondary,
-  trackColor = colors.cardLight,
+  fillColor,
+  trackColor,
   height = 12,
   usePatternTrack = false,
   style,
 }) => {
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
+  
+  const _fillColor = fillColor || colors.secondary;
+  const _trackColor = trackColor || colors.cardLight;
   const boundedProgress = Math.min(Math.max(progress, 0), 1);
 
   return (
-    <View style={[styles.container, { height, backgroundColor: usePatternTrack ? 'transparent' : trackColor }, style]}>
+    <View style={[styles.container, { height, backgroundColor: usePatternTrack ? 'transparent' : _trackColor }, style]}>
       {usePatternTrack && (
         <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
           <MotiView
@@ -74,7 +79,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
         style={[
           styles.fill,
           {
-            backgroundColor: fillColor,
+            backgroundColor: _fillColor,
             borderRadius: height / 2,
             overflow: 'hidden',
           },
@@ -94,7 +99,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
             }}
             style={{
               position: 'absolute',
-              left: bubble.left,
+              left: bubble.left as any,
               width: bubble.size,
               height: bubble.size,
               borderRadius: bubble.size / 2,
@@ -108,7 +113,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     width: '100%',
     borderRadius: borderRadii.pill,

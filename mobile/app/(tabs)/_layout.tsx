@@ -1,12 +1,14 @@
 import { Tabs } from 'expo-router';
 import { Home, User, Calendar } from 'lucide-react-native';
-import { colors, borderRadii, spacing } from '../../src/constants/theme';
+import { borderRadii, spacing, useThemeColors } from '../../src/constants/theme';
 import { View, StyleSheet, Platform, Dimensions } from 'react-native';
 
 const { width } = Dimensions.get('window');
 const TAB_BAR_WIDTH = 220;
 
 export default function TabLayout() {
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
   return (
     <Tabs
       screenOptions={{
@@ -56,7 +58,7 @@ export default function TabLayout() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   tabBar: {
     position: 'absolute',
     bottom: Platform.OS === 'ios' ? 32 : 24,

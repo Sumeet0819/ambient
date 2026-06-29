@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { api } from '../../src/lib/api';
 import { clearAuthAsync } from '../../src/store/auth.slice';
-import { fetchProfile, updateProfile, linkWhatsApp, clearProfile } from '../../src/store/profile.slice';
+import { fetchProfile, updateProfile, linkWhatsApp, clearProfile, generateLinkCode } from '../../src/store/profile.slice';
 import { resetTransactions } from '../../src/store/transactions.slice';
 import { setLightMode } from '../../src/store/settings.slice';
 import { AppDispatch, RootState } from '../../src/store';
@@ -53,23 +53,23 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleLinkPhone = async () => {
-    if (!phone) {
-      alert('Please enter a valid phone number');
-      return;
-    }
+  const handleGenerateLinkCode = async () => {
     if (!profile?.id) return;
-    
     setPhoneSaving(true);
     try {
-      await dispatch(linkWhatsApp({ userId: profile.id, phoneNumber: phone })).unwrap();
-      alert('WhatsApp Number linked successfully!');
+      const code = await dispatch(generateLinkCode(profile.id)).unwrap();
+      Alert.alert(
+        "Link WhatsApp",
+        `Send the following code to our WhatsApp bot:\n\n${code}\n\nYour account will be linked automatically.`,
+        [{ text: "OK" }]
+      );
     } catch (e: any) {
-      alert(e.message || 'Failed to link phone number');
+      alert(e.message || 'Failed to generate link code');
     } finally {
       setPhoneSaving(false);
     }
   };
+
 
   const handleResetTransactions = () => {
     Alert.alert(
@@ -175,21 +175,16 @@ export default function ProfileScreen() {
               </View>
 
               {/* Phone Row */}
-              <View style={styles.settingRow}>
+              <TouchableOpacity style={styles.settingRow} onPress={handleGenerateLinkCode}>
                 <Smartphone size={24} color={colors.primary} style={styles.rowIcon} />
                 <View style={styles.rowTextCol}>
-                  <Text style={styles.rowSubLabel}>Phone number</Text>
-                  <TextInput
-                    style={styles.rowInput}
-                    value={phone}
-                    onChangeText={setPhone}
-                    placeholder="Enter phone number"
-                    placeholderTextColor={colors.textMuted}
-                    onBlur={handleLinkPhone}
-                  />
+                  <Text style={styles.rowSubLabel}>WhatsApp Number</Text>
+                  <Text style={profile?.phone_number ? styles.rowTextValue : [styles.rowTextValue, { color: colors.textMuted }]}>
+                    {profile?.phone_number ? profile.phone_number : 'Not linked (Tap to link)'}
+                  </Text>
                 </View>
                 {phoneSaving ? <ActivityIndicator size="small" color={colors.primary} /> : <ChevronRight size={20} color={colors.textMuted} />}
-              </View>
+              </TouchableOpacity>
 
               {/* Email Row (Mock) */}
               <View style={styles.settingRow}>

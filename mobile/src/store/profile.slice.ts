@@ -46,6 +46,14 @@ export const linkWhatsApp = createAsyncThunk(
   }
 );
 
+export const generateLinkCode = createAsyncThunk(
+  'profile/generateLinkCode',
+  async (userId: string) => {
+    const response = await api.post('/auth/generate-link-code', { userId });
+    return response.data.code as string;
+  }
+);
+
 const profileSlice = createSlice({
   name: 'profile',
   initialState,

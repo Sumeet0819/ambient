@@ -214,3 +214,25 @@ export async function linkWhatsAppPhone(
 
   return {};
 }
+
+/**
+ * Generate a unique code to link WhatsApp
+ */
+export async function generateLinkCode(
+  userId: string
+): Promise<{ code?: string; error?: string }> {
+  const supabase = getSupabaseClient();
+  const code = 'AMB-' + Math.floor(1000 + Math.random() * 9000).toString();
+
+  const { error } = await supabase
+    .from('users')
+    .update({ link_code: code })
+    .eq('id', userId);
+
+  if (error) {
+    logger.error({ error, userId }, 'Failed to generate link code');
+    return { error: error.message };
+  }
+
+  return { code };
+}

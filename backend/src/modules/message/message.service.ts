@@ -18,6 +18,41 @@ import { logger } from '../../shared/logger';
 export async function handleIncomingMessage(message: IncomingMessage): Promise<void> {
   const supabase = getSupabaseClient();
 
+  // ── 0. Handle Link Codes ─────────────────────────────────────────────────
+  if (message.text?.toUpperCase().startsWith('AMB-')) {
+    const code = message.text.toUpperCase().trim();
+    const { data: userToLink } = await supabase
+      .from('users')
+      .select('id, email')
+      .eq('link_code', code)
+      .single();
+
+    if (userToLink) {
+      const normalisedSender = message.sender.split('@')[0].split(':')[0];
+      
+      const { data: tempUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('phone_number', normalisedSender)
+        .single();
+        
+      if (tempUser && tempUser.id !== userToLink.id) {
+        await supabase.from('users').delete().eq('id', tempUser.id);
+      }
+
+      await supabase
+        .from('users')
+        .update({ phone_number: normalisedSender, link_code: null })
+        .eq('id', userToLink.id);
+        
+      await sendMessage(message.sender, `✅ Successfully linked your WhatsApp to ${userToLink.email || 'your account'}! You can now log your expenses.`);
+      return;
+    } else {
+      await sendMessage(message.sender, `❌ Invalid or expired link code. Please generate a new one in the app.`);
+      return;
+    }
+  }
+
   // ── 1. Find / create user ────────────────────────────────────────────────
   const user = await findOrCreateUser(message.sender);
 

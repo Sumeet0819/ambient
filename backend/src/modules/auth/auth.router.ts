@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { requestOtp, verifyOtp, registerWithEmail, loginWithEmail, linkWhatsAppPhone } from './auth.service';
+import { requestOtp, verifyOtp, registerWithEmail, loginWithEmail, linkWhatsAppPhone, generateLinkCode } from './auth.service';
 
 const router = Router();
 
@@ -101,6 +101,26 @@ router.post('/link-phone', async (req: Request, res: Response) => {
   }
 
   res.json({ message: 'Phone number linked successfully' });
+});
+
+/**
+ * POST /api/v1/auth/generate-link-code
+ * Body: { userId: string }
+ */
+router.post('/generate-link-code', async (req: Request, res: Response) => {
+  const { userId } = req.body;
+  if (!userId) {
+    res.status(400).json({ error: 'userId is required' });
+    return;
+  }
+
+  const result = await generateLinkCode(userId);
+  if (result.error) {
+    res.status(400).json({ error: result.error });
+    return;
+  }
+
+  res.json({ code: result.code });
 });
 
 export default router;

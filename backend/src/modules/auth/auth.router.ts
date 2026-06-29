@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { requestOtp, verifyOtp } from './auth.service';
+import { requestOtp, verifyOtp, registerWithEmail, loginWithEmail, linkWhatsAppPhone } from './auth.service';
 
 const router = Router();
 
@@ -41,6 +41,66 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
   }
 
   res.json({ token: result.jwt, userId: result.userId });
+});
+
+/**
+ * POST /api/v1/auth/register
+ * Body: { email: string, password: string }
+ */
+router.post('/register', async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    res.status(400).json({ error: 'email and password are required' });
+    return;
+  }
+
+  const result = await registerWithEmail(email, password);
+  if (result.error) {
+    res.status(400).json({ error: result.error });
+    return;
+  }
+
+  res.json({ token: result.jwt, userId: result.userId });
+});
+
+/**
+ * POST /api/v1/auth/login
+ * Body: { email: string, password: string }
+ */
+router.post('/login', async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    res.status(400).json({ error: 'email and password are required' });
+    return;
+  }
+
+  const result = await loginWithEmail(email, password);
+  if (result.error) {
+    res.status(401).json({ error: result.error });
+    return;
+  }
+
+  res.json({ token: result.jwt, userId: result.userId });
+});
+
+/**
+ * POST /api/v1/auth/link-phone
+ * Body: { userId: string, phoneNumber: string }
+ */
+router.post('/link-phone', async (req: Request, res: Response) => {
+  const { userId, phoneNumber } = req.body;
+  if (!userId || !phoneNumber) {
+    res.status(400).json({ error: 'userId and phoneNumber are required' });
+    return;
+  }
+
+  const result = await linkWhatsAppPhone(userId, phoneNumber);
+  if (result.error) {
+    res.status(400).json({ error: result.error });
+    return;
+  }
+
+  res.json({ message: 'Phone number linked successfully' });
 });
 
 export default router;

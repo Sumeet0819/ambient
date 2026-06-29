@@ -1,5 +1,5 @@
 {
-  "name": "mobile",
+  "name": "ambient",
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
@@ -13,6 +13,7 @@
     "expo-linking": "~56.0.14",
     "expo-router": "~56.2.11",
     "expo-status-bar": "~56.0.4",
+    "expo-system-ui": "^56.0.5",
     "lucide-react-native": "^1.22.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -30,8 +31,8 @@
   },
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web"
   },
   "private": true

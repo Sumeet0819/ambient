@@ -2,17 +2,22 @@ import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useDispatch } from 'react-redux';
 import { api } from '../../src/lib/api';
+import { setAuthAsync } from '../../src/store/auth.slice';
+import { AppDispatch } from '../../src/store';
 
 export default function LoginScreen() {
-  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+  const dispatch = useDispatch<AppDispatch>();
 
-  const handleRequestOtp = async () => {
-    if (!phone) {
-      setError('Please enter your phone number');
+  const handleLogin = async () => {
+    if (!email || !password) {
+      setError('Please enter both email and password');
       return;
     }
 
@@ -20,11 +25,13 @@ export default function LoginScreen() {
     setError('');
 
     try {
-      // Use the backend API which handles Supabase auth
-      await api.post('/auth/request-otp', { phoneNumber: phone });
-      router.push({ pathname: '/(auth)/verify', params: { phone } });
+      const response = await api.post('/auth/login', { email, password });
+      const { token, userId } = response.data;
+      
+      // Save auth state, the RootLayout will automatically redirect to (tabs)
+      await dispatch(setAuthAsync({ token, userId }));
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to send OTP. Is backend running?');
+      setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
@@ -34,24 +41,37 @@ export default function LoginScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.title}>AI Finance</Text>
-        <Text style={styles.subtitle}>Enter the phone number you use with the WhatsApp Bot</Text>
+        <Text style={styles.subtitle}>Sign in with your email</Text>
 
         <TextInput
           style={styles.input}
-          placeholder="Phone Number (e.g. 96248XXXXX)"
-          keyboardType="phone-pad"
-          value={phone}
-          onChangeText={(t) => { setPhone(t); setError(''); }}
+          placeholder="Email Address"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          value={email}
+          onChangeText={(t) => { setEmail(t); setError(''); }}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          secureTextEntry
+          value={password}
+          onChangeText={(t) => { setPassword(t); setError(''); }}
         />
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <TouchableOpacity style={styles.button} onPress={handleRequestOtp} disabled={loading}>
+        <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>Continue</Text>
+            <Text style={styles.buttonText}>Login</Text>
           )}
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => router.push('/(auth)/register')} style={{ marginTop: 24, alignItems: 'center' }}>
+          <Text style={{ color: '#3B82F6', fontSize: 16 }}>Don't have an account? Register</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -71,7 +91,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginBottom: 16,
   },
-  error: { color: '#EF4444', marginBottom: 16 },
+  error: { color: '#EF4444', marginBottom: 16, textAlign: 'center' },
   button: {
     backgroundColor: '#3B82F6',
     padding: 16,

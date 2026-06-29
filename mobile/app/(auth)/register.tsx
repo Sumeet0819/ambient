@@ -1,23 +1,23 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
 import { api } from '../../src/lib/api';
 import { setAuthAsync } from '../../src/store/auth.slice';
 import { AppDispatch } from '../../src/store';
 
-export default function VerifyScreen() {
-  const { phone } = useLocalSearchParams();
-  const [otp, setOtp] = useState('');
+export default function RegisterScreen() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
 
-  const handleVerify = async () => {
-    if (!otp) {
-      setError('Please enter the OTP');
+  const handleRegister = async () => {
+    if (!email || !password) {
+      setError('Please enter both email and password');
       return;
     }
 
@@ -25,13 +25,13 @@ export default function VerifyScreen() {
     setError('');
 
     try {
-      const response = await api.post('/auth/verify-otp', { phoneNumber: phone, otp });
+      const response = await api.post('/auth/register', { email, password });
       const { token, userId } = response.data;
       
       // Save auth state, the RootLayout will automatically redirect to (tabs)
       await dispatch(setAuthAsync({ token, userId }));
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Invalid OTP');
+      setError(err.response?.data?.error || 'Registration failed');
       setLoading(false);
     }
   };
@@ -39,30 +39,38 @@ export default function VerifyScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Verification</Text>
-        <Text style={styles.subtitle}>Enter the 6-digit code sent to {phone}</Text>
+        <Text style={styles.title}>Create Account</Text>
+        <Text style={styles.subtitle}>Sign up with email and password</Text>
 
         <TextInput
           style={styles.input}
-          placeholder="000000"
-          keyboardType="number-pad"
-          maxLength={6}
-          value={otp}
-          onChangeText={(t) => { setOtp(t); setError(''); }}
+          placeholder="Email Address"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          value={email}
+          onChangeText={(t) => { setEmail(t); setError(''); }}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          secureTextEntry
+          value={password}
+          onChangeText={(t) => { setPassword(t); setError(''); }}
         />
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <TouchableOpacity style={styles.button} onPress={handleVerify} disabled={loading}>
+        <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>Verify</Text>
+            <Text style={styles.buttonText}>Register</Text>
           )}
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 24, alignItems: 'center' }}>
-          <Text style={{ color: '#3B82F6', fontSize: 16 }}>Wrong number? Go back</Text>
+          <Text style={{ color: '#3B82F6', fontSize: 16 }}>Already have an account? Login</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -79,9 +87,7 @@ const styles = StyleSheet.create({
     borderColor: '#D1D5DB',
     borderRadius: 8,
     padding: 16,
-    fontSize: 24,
-    letterSpacing: 8,
-    textAlign: 'center',
+    fontSize: 18,
     marginBottom: 16,
   },
   error: { color: '#EF4444', marginBottom: 16, textAlign: 'center' },

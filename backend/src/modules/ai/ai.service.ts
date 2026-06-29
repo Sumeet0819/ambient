@@ -7,7 +7,7 @@ import { logger } from '../../shared/logger';
 const ai = new GoogleGenAI({ apiKey: config.GEMINI_API_KEY });
 
 // Free tier limits: gemini-1.5-flash → 15 RPM, 1M TPM, 1500 RPD
-const MODEL = 'gemini-3.5-flash';
+const MODEL = 'gemini-3.1-flash-lite';
 
 // ── Zod schema for validated AI output ───────────────────────────────────────
 export const ParsedTransactionSchema = z.object({
@@ -18,10 +18,15 @@ export const ParsedTransactionSchema = z.object({
   category: z.string().nullable(),
   paymentMethod: z.string().nullable(),
   notes: z.string().nullable(),
+});
+
+export const ParsedMessageSchema = z.object({
   isFinancial: z.boolean(),
+  transactions: z.array(ParsedTransactionSchema).default([]),
 });
 
 export type ParsedTransaction = z.infer<typeof ParsedTransactionSchema>;
+export type ParsedMessage = z.infer<typeof ParsedMessageSchema>;
 
 // ── System prompt ─────────────────────────────────────────────────────────────
 const SYSTEM_PROMPT = `You are a financial transaction parser for an Indian personal finance app.
@@ -29,7 +34,8 @@ Your job is to extract structured transaction data from natural language message
 
 Rules:
 - Default currency is INR (Indian Rupees). ₹, rs, rupe, rupees all mean INR.
-- If the message is NOT about a financial transaction (e.g. greetings, questions, random text), set isFinancial to false and all other fields to null.
+- If the message is NOT about a financial transaction (e.g. greetings, questions, random text), set isFinancial to false and transactions to an empty array.
+- If the user provides split expenses (e.g., "spent 500 total, 300 on food and 200 on cab"), extract EACH split as a SEPARATE transaction in the array (e.g., one for 300 Food, one for 200 Transport). Ignore the total if you have the splits.
 - For type: use "expense" for spending/payment, "income" for receiving money/salary, "transfer" for sending to someone, "loan" for lending/borrowing, "investment" for stocks/mutual funds, "subscription" for recurring services.
 - Infer category from context: Food, Transport, Shopping, Entertainment, Health, Utilities, Rent, Salary, Investment, Subscription, Other.
 - paymentMethod options: cash, upi, card, netbanking, or null if unknown.
@@ -37,46 +43,56 @@ Rules:
 
 // ── Gemini function calling schema ────────────────────────────────────────────
 const extractTransactionTool = {
-  name: 'extract_transaction',
-  description: 'Extract structured financial transaction data from a natural language message',
+  name: 'extract_transactions',
+  description: 'Extract one or more structured financial transaction data from a natural language message',
   parameters: {
     type: Type.OBJECT,
     properties: {
       isFinancial: {
         type: Type.BOOLEAN,
-        description: 'Whether the message is about a financial transaction',
+        description: 'Whether the message is about financial transactions',
       },
-      type: {
-        type: Type.STRING,
-        enum: ['expense', 'income', 'transfer', 'loan', 'investment', 'subscription', 'unknown'],
-        description: 'Type of transaction',
-      },
-      amount: {
-        type: Type.NUMBER,
-        description: 'Transaction amount as a number, or null if not found',
-      },
-      currency: {
-        type: Type.STRING,
-        description: 'Currency code, default INR',
-      },
-      merchant: {
-        type: Type.STRING,
-        description: 'Merchant or person name, or null',
-      },
-      category: {
-        type: Type.STRING,
-        description: 'Category: Food, Transport, Shopping, Entertainment, Health, Utilities, Rent, Salary, Investment, Subscription, Other, or null',
-      },
-      paymentMethod: {
-        type: Type.STRING,
-        description: 'Payment method: cash, upi, card, netbanking, or null',
-      },
-      notes: {
-        type: Type.STRING,
-        description: 'Any additional notes from the message, or null',
+      transactions: {
+        type: Type.ARRAY,
+        description: 'List of transactions found in the message',
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            type: {
+              type: Type.STRING,
+              enum: ['expense', 'income', 'transfer', 'loan', 'investment', 'subscription', 'unknown'],
+              description: 'Type of transaction',
+            },
+            amount: {
+              type: Type.NUMBER,
+              description: 'Transaction amount as a number, or null if not found',
+            },
+            currency: {
+              type: Type.STRING,
+              description: 'Currency code, default INR',
+            },
+            merchant: {
+              type: Type.STRING,
+              description: 'Merchant or person name, or null',
+            },
+            category: {
+              type: Type.STRING,
+              description: 'Category: Food, Transport, Shopping, Entertainment, Health, Utilities, Rent, Salary, Investment, Subscription, Other, or null',
+            },
+            paymentMethod: {
+              type: Type.STRING,
+              description: 'Payment method: cash, upi, card, netbanking, or null',
+            },
+            notes: {
+              type: Type.STRING,
+              description: 'Any additional notes from the message, or null',
+            },
+          },
+          required: ['type', 'amount', 'currency', 'merchant', 'category', 'paymentMethod', 'notes'],
+        },
       },
     },
-    required: ['isFinancial', 'type', 'amount', 'currency', 'merchant', 'category', 'paymentMethod', 'notes'],
+    required: ['isFinancial', 'transactions'],
   },
 };
 
@@ -85,11 +101,11 @@ const extractTransactionTool = {
  * Returns null if the message is not financial or parsing fails.
  * Retries once with backoff on 429 rate-limit errors.
  */
-export async function parseTransaction(text: string): Promise<ParsedTransaction | null> {
+export async function parseTransaction(text: string): Promise<ParsedMessage | null> {
   return _callGemini(text, 0);
 }
 
-async function _callGemini(text: string, attempt: number): Promise<ParsedTransaction | null> {
+async function _callGemini(text: string, attempt: number): Promise<ParsedMessage | null> {
   try {
     const response = await ai.models.generateContent({
       model: MODEL,
@@ -111,14 +127,21 @@ async function _callGemini(text: string, attempt: number): Promise<ParsedTransac
       return null;
     }
 
-    const raw = part.functionCall.args as Record<string, unknown>;
-    const parsed = ParsedTransactionSchema.safeParse({
-      ...raw,
-      amount: raw.amount ?? null,
-      merchant: raw.merchant ?? null,
-      category: raw.category ?? null,
-      paymentMethod: raw.paymentMethod ?? null,
-      notes: raw.notes ?? null,
+    const raw = part.functionCall.args as any;
+    
+    // Ensure nested nulls are handled for each transaction
+    const mappedTransactions = (raw.transactions || []).map((t: any) => ({
+      ...t,
+      amount: t.amount ?? null,
+      merchant: t.merchant ?? null,
+      category: t.category ?? null,
+      paymentMethod: t.paymentMethod ?? null,
+      notes: t.notes ?? null,
+    }));
+
+    const parsed = ParsedMessageSchema.safeParse({
+      isFinancial: raw.isFinancial ?? false,
+      transactions: mappedTransactions,
     });
 
     if (!parsed.success) {

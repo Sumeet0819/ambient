@@ -10,7 +10,7 @@ router.get('/me', async (req: AuthRequest, res: Response) => {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from('users')
-    .select('id, phone_number, name, created_at')
+    .select('id, phone_number, name, email, created_at')
     .eq('id', req.userId!)
     .single();
 

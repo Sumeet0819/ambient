@@ -1,7 +1,7 @@
 import { IncomingMessage } from '../../shared/types/incoming-message.type';
 import { getSupabaseClient } from '../database/supabase';
 import { sendMessage } from '../whatsapp/whatsapp.service';
-import { parseTransaction, ParsedTransaction } from '../ai/ai.service';
+import { parseTransaction, ParsedMessage, ParsedTransaction } from '../ai/ai.service';
 import { findOrCreateUser } from '../users/users.service';
 import { saveTransaction } from '../transactions/transactions.service';
 import { logger } from '../../shared/logger';
@@ -11,7 +11,7 @@ import { logger } from '../../shared/logger';
  * 1. Find or create user
  * 2. Save raw message to conversation_logs
  * 3. Parse with Gemini AI
- * 4. If financial → save transaction
+ * 4. If financial → save transaction(s)
  * 5. Update conversation_log with parsed result
  * 6. Send rich reply back to user
  */
@@ -43,18 +43,22 @@ export async function handleIncomingMessage(message: IncomingMessage): Promise<v
   const logId = logEntry?.id ?? null;
 
   // ── 3. AI Parsing ─────────────────────────────────────────────────────────
-  let parsed: ParsedTransaction | null = null;
+  let parsed: ParsedMessage | null = null;
   let reply: string;
 
   if (message.text) {
     parsed = await parseTransaction(message.text);
   }
 
-  // ── 4. Save transaction if financial ──────────────────────────────────────
-  let transactionId: string | null = null;
-  if (parsed?.isFinancial && parsed.amount && user) {
-    const saved = await saveTransaction(user.id, parsed);
-    transactionId = saved?.id ?? null;
+  // ── 4. Save transaction(s) if financial ──────────────────────────────────────
+  let savedCount = 0;
+  if (parsed?.isFinancial && parsed.transactions.length > 0 && user) {
+    for (const txn of parsed.transactions) {
+      if (txn.amount) {
+        const saved = await saveTransaction(user.id, txn);
+        if (saved) savedCount++;
+      }
+    }
   }
 
   // ── 5. Update conversation_log with AI result ─────────────────────────────
@@ -69,9 +73,9 @@ export async function handleIncomingMessage(message: IncomingMessage): Promise<v
   }
 
   // ── 6. Build and send reply ───────────────────────────────────────────────
-  reply = buildReply(message.text, parsed, transactionId);
+  reply = buildReply(message.text, parsed, savedCount);
   await sendMessage(message.sender, reply);
-  logger.info({ sender: message.sender, transactionId }, 'Reply sent');
+  logger.info({ sender: message.sender, savedCount }, 'Reply sent');
 }
 
 /**
@@ -79,45 +83,46 @@ export async function handleIncomingMessage(message: IncomingMessage): Promise<v
  */
 function buildReply(
   text: string | null,
-  parsed: ParsedTransaction | null,
-  transactionId: string | null,
+  parsed: ParsedMessage | null,
+  savedCount: number
 ): string {
-  if (!parsed || !parsed.isFinancial) {
+  if (!parsed || !parsed.isFinancial || parsed.transactions.length === 0) {
     return (
       `👋 Hey! I'm your Finance Assistant.\n\n` +
       `I can record your transactions. Try sending:\n` +
       `• "Spent 450 on Pizza Hut"\n` +
-      `• "Received 5000 salary"\n` +
-      `• "Paid 200 for Uber via UPI"`
+      `• "Spent 1000 total, 400 on food and 600 on cab"\n` +
+      `• "Received 5000 salary"`
     );
   }
 
-  if (!parsed.amount) {
-    return `🤔 I understood this is a financial transaction, but couldn't figure out the amount. Could you resend with the amount? E.g. "Spent ₹450 on ${parsed.merchant ?? 'something'}"`;
+  if (savedCount === 0) {
+    return `🤔 I understood this is a financial transaction, but couldn't figure out the amounts. Could you resend with the exact amounts? E.g. "Spent ₹450 on food"`;
   }
 
-  const emoji = {
-    expense: '💸',
-    income: '💰',
-    transfer: '↔️',
-    loan: '🤝',
-    investment: '📈',
-    subscription: '🔄',
-    unknown: '📝',
-  }[parsed.type] ?? '📝';
+  let reply = `✅ Saved ${savedCount} transaction${savedCount > 1 ? 's' : ''} to your journal:\n\n`;
 
-  const typeLabel = parsed.type.charAt(0).toUpperCase() + parsed.type.slice(1);
-  const amountStr = `₹${parsed.amount.toLocaleString('en-IN')}`;
+  for (const txn of parsed.transactions) {
+    if (!txn.amount) continue;
 
-  let reply = `${emoji} *${typeLabel} recorded!*\n\n`;
-  reply += `💵 Amount: *${amountStr}*`;
-  if (parsed.currency !== 'INR') reply += ` (${parsed.currency})`;
-  reply += `\n`;
-  if (parsed.merchant) reply += `🏪 Merchant: ${parsed.merchant}\n`;
-  if (parsed.category) reply += `🏷️ Category: ${parsed.category}\n`;
-  if (parsed.paymentMethod) reply += `💳 Via: ${parsed.paymentMethod.toUpperCase()}\n`;
-  if (parsed.notes) reply += `📝 Note: ${parsed.notes}\n`;
-  reply += `\n✅ Saved to your finance journal.`;
+    const emoji = {
+      expense: '💸',
+      income: '💰',
+      transfer: '↔️',
+      loan: '🤝',
+      investment: '📈',
+      subscription: '🔄',
+      unknown: '📝',
+    }[txn.type] ?? '📝';
 
-  return reply;
+    const typeLabel = txn.type.charAt(0).toUpperCase() + txn.type.slice(1);
+    const amountStr = `₹${txn.amount.toLocaleString('en-IN')}`;
+
+    reply += `${emoji} *${typeLabel}*: ${amountStr}\n`;
+    if (txn.merchant) reply += `   🏪 ${txn.merchant}\n`;
+    if (txn.category) reply += `   🏷️ ${txn.category}\n`;
+    reply += `\n`;
+  }
+
+  return reply.trimEnd();
 }

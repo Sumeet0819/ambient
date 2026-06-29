@@ -1,9 +1,5 @@
-import makeWASocket, {
-  DisconnectReason,
-  fetchLatestBaileysVersion,
-  makeCacheableSignalKeyStore,
-  useMultiFileAuthState,
-} from '@whiskeysockets/baileys';
+// @whiskeysockets/baileys is an ESM package, we import it dynamically in initWhatsApp
+// to avoid ERR_REQUIRE_ESM errors when running ts-node in CommonJS mode.
 import { Boom } from '@hapi/boom';
 import qrcode from 'qrcode-terminal';
 import path from 'path';
@@ -15,7 +11,7 @@ type MessageHandler = (message: IncomingMessage) => Promise<void>;
 const SESSION_DIR = path.resolve(process.cwd(), 'sessions');
 
 
-let sock: ReturnType<typeof makeWASocket> | null = null;
+let sock: any = null;
 let messageHandler: MessageHandler | null = null;
 
 /**
@@ -44,6 +40,15 @@ export async function sendMessage(to: string, text: string): Promise<void> {
  * Saves session credentials to the `sessions/` directory.
  */
 export async function initWhatsApp(): Promise<void> {
+  const baileys = await Function('return import("@whiskeysockets/baileys")')();
+  const makeWASocket = baileys.default;
+  const {
+    DisconnectReason,
+    fetchLatestBaileysVersion,
+    makeCacheableSignalKeyStore,
+    useMultiFileAuthState,
+  } = baileys;
+
   const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
   const { version, isLatest } = await fetchLatestBaileysVersion();
   logger.info(`Using WA v${version.join('.')}${isLatest ? ' (latest)' : ''}`);
@@ -60,7 +65,7 @@ export async function initWhatsApp(): Promise<void> {
   });
 
   // ── QR Code ──────────────────────────────────────────────────────────────
-  sock.ev.on('connection.update', async (update) => {
+  sock.ev.on('connection.update', async (update: any) => {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
@@ -94,7 +99,7 @@ export async function initWhatsApp(): Promise<void> {
   sock.ev.on('creds.update', saveCreds);
 
   // ── Incoming messages ─────────────────────────────────────────────────
-  sock.ev.on('messages.upsert', async ({ messages, type }) => {
+  sock.ev.on('messages.upsert', async ({ messages, type }: any) => {
     if (type !== 'notify') return;
 
     for (const msg of messages) {

@@ -24,7 +24,7 @@ export async function saveTransaction(
   userId: string,
   parsed: ParsedTransaction,
 ): Promise<Transaction | null> {
-  if (!parsed.amount || !parsed.isFinancial) return null;
+  if (!parsed.amount) return null;
 
   const supabase = getSupabaseClient();
 

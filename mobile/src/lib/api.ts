@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { store } from '../store';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.0.136:3000/api/v1';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://ambient-iizl.onrender.com/api/v1';
 
 export const api = axios.create({
   baseURL: API_URL,

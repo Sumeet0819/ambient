@@ -11,6 +11,8 @@ export const colors = {
 };
 
 export const typography = {
+  displayDigital: { fontFamily: 'Quantico_400Regular', fontSize: 56 },
+  displayDigitalBold: { fontFamily: 'Quantico_700Bold', fontSize: 56 },
   heading1: { fontSize: 48, fontWeight: '300' as const },
   heading2: { fontSize: 32, fontWeight: '400' as const },
   heading3: { fontSize: 24, fontWeight: '500' as const },

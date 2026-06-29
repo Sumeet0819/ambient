@@ -45,10 +45,16 @@ export default function TransactionsScreen() {
   const baseCurrency = transactions.length > 0 ? (transactions[0].currency || 'INR') : 'INR';
   const currencySymbol = getCurrencySymbol(baseCurrency);
 
-  const limit = summary?.monthlyLimit || 50000;
+  const limit = summary?.monthlyLimit || 50000; // Temporary default to show UI progress
   const spent = summary?.totalExpense || 0;
-  const progress = Math.min(spent / limit, 1);
+  const progress = limit > 0 ? Math.min(spent / limit, 1) : 0;
   const percentage = Math.round(progress * 100) || 0;
+  
+  const availableAmount = Math.max(limit - spent, 0);
+  const formattedAvailable = formatCurrency(availableAmount, baseCurrency);
+  const availSplitIndex = formattedAvailable.lastIndexOf('.');
+  const availMain = availSplitIndex !== -1 ? formattedAvailable.substring(0, availSplitIndex) : formattedAvailable;
+  const availDecimal = availSplitIndex !== -1 ? formattedAvailable.substring(availSplitIndex) : '.00';
 
   const filteredTransactions = selectedCategory
     ? transactions.filter(t => t.category_id === selectedCategory)
@@ -112,6 +118,14 @@ export default function TransactionsScreen() {
           </View>
           
           <View style={styles.planSection}>
+            <View style={{ marginBottom: spacing.md }}>
+               <Text style={[typography.displayDigital, { color: colors.secondary, letterSpacing: -1, lineHeight: 60 }]} numberOfLines={1} adjustsFontSizeToFit>
+                 {availMain}<Text style={{ opacity: 0.5 }}>{availDecimal}</Text>
+               </Text>
+               <Text style={{ fontFamily: 'Quantico_700Bold', color: colors.secondary, fontSize: 12, marginTop: 2, letterSpacing: 1 }}>
+                 AVAILABLE
+               </Text>
+            </View>
             <View style={styles.planTextRow}>
                <Text style={styles.planPercent}>{percentage}%</Text>
                <Text style={styles.planLabel}>Plan Expenses</Text>
@@ -191,7 +205,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.md },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   headerTitle: { ...typography.bodyLarge, fontWeight: '500' },
-  planSection: { marginTop: spacing.xxl },
+  planSection: { marginTop: spacing.xl},
   planTextRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   planPercent: { ...typography.heading1, letterSpacing: -1 },
   planLabel: { ...typography.bodyMedium, marginBottom: spacing.sm },

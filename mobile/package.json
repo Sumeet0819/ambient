@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
+    "@expo-google-fonts/chakra-petch": "^0.4.1",
+    "@expo-google-fonts/orbitron": "^0.4.2",
+    "@expo-google-fonts/quantico": "^0.4.1",
+    "@expo-google-fonts/share-tech-mono": "^0.4.1",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@reduxjs/toolkit": "^2.12.0",
     "@supabase/supabase-js": "^2.108.2",
@@ -10,6 +14,7 @@
     "date-fns": "^4.4.0",
     "expo": "~56.0.12",
     "expo-constants": "~56.0.18",
+    "expo-font": "^56.0.7",
     "expo-linking": "~56.0.14",
     "expo-router": "~56.2.11",
     "expo-status-bar": "~56.0.4",

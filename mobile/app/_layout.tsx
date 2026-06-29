@@ -4,6 +4,7 @@ import { View, Text, ActivityIndicator } from 'react-native';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import { store, RootState, AppDispatch } from '../src/store';
 import { hydrateAuth } from '../src/store/auth.slice';
+import { useFonts, Quantico_400Regular, Quantico_700Bold } from '@expo-google-fonts/quantico';
 
 function RootLayoutInner() {
   const token = useSelector((state: RootState) => state.auth.token);
@@ -12,12 +13,17 @@ function RootLayoutInner() {
   const segments = useSegments();
   const router = useRouter();
 
+  const [fontsLoaded] = useFonts({
+    Quantico_400Regular,
+    Quantico_700Bold,
+  });
+
   useEffect(() => {
     dispatch(hydrateAuth()).then(() => setIsReady(true));
   }, [dispatch]);
 
   useEffect(() => {
-    if (!isReady) return;
+    if (!isReady || !fontsLoaded) return;
 
     const inAuthGroup = segments[0] === '(auth)';
 
@@ -28,7 +34,7 @@ function RootLayoutInner() {
     }
   }, [token, isReady, segments, router]);
 
-  if (!isReady) {
+  if (!isReady || !fontsLoaded) {
     return (
       <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
         <Text style={{ fontSize: 48, fontWeight: 'bold', color: '#20D770', letterSpacing: -1, marginBottom: 24 }}>

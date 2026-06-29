@@ -1,5 +1,7 @@
 // Load and validate env first — will exit if config is invalid
 import { config } from './config';
+// Inject WebSocket globally for Supabase in Node 20
+(global as any).WebSocket = require('ws');
 import { logger } from './shared/logger';
 import app from './app';
 import { initWhatsApp, onMessage } from './modules/whatsapp/whatsapp.service';

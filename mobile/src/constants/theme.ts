@@ -1,0 +1,38 @@
+export const colors = {
+  primary: '#FFFFFF', // Main dashboard background
+  secondary: '#000000', // History/Analytics background
+  accent: '#20D770', // Primary Neon Green
+  accentSecondary: '#FF6B6B', // Coral Red for specific categories
+  cardLight: '#F5F5F5',
+  cardDark: '#1C1C1E',
+  textLight: '#000000', // Text on light backgrounds
+  textDark: '#FFFFFF', // Text on dark backgrounds
+  textMuted: '#8E8E93',
+};
+
+export const typography = {
+  heading1: { fontSize: 48, fontWeight: '300' as const },
+  heading2: { fontSize: 32, fontWeight: '400' as const },
+  heading3: { fontSize: 24, fontWeight: '500' as const },
+  bodyLarge: { fontSize: 18, fontWeight: '400' as const },
+  bodyMedium: { fontSize: 16, fontWeight: '400' as const },
+  bodySmall: { fontSize: 14, fontWeight: '500' as const },
+  label: { fontSize: 12, fontWeight: '600' as const },
+};
+
+export const borderRadii = {
+  sm: 12,
+  md: 16,
+  lg: 24,
+  xl: 32,
+  pill: 9999, // fully rounded
+};
+
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 32,
+  xxl: 48,
+};

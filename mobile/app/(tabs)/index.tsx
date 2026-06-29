@@ -1,144 +1,167 @@
 import { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { format } from 'date-fns';
-import { useSelector } from 'react-redux';
+import { format, isToday, isYesterday } from 'date-fns';
+import { ChevronLeft, Grid, MoreHorizontal, ArrowUpRight, ArrowDownRight, Coffee, Wallet, Car, Plus } from 'lucide-react-native';
 import { api } from '../../src/lib/api';
-import { RootState } from '../../src/store';
-import { supabase } from '../../src/lib/supabase';
+import { colors, typography, borderRadii, spacing } from '../../src/constants/theme';
+import { IconButton } from '../../src/components/ui/IconButton';
+import { ProgressBar } from '../../src/components/ui/ProgressBar';
+import { formatCurrency, getCurrencySymbol } from '../../src/lib/format';
 
-export default function DashboardScreen() {
+export default function TransactionsScreen() {
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<any>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const userId = useSelector((state: RootState) => state.auth.userId);
 
-  const fetchSummary = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const month = format(new Date(), 'yyyy-MM');
-      const res = await api.get(`/analytics/monthly?month=${month}`);
-      setSummary(res.data.data);
+      const [txRes, sumRes] = await Promise.all([
+        api.get('/transactions'),
+        api.get(`/analytics/monthly?month=${format(new Date(), 'yyyy-MM')}`)
+      ]);
+      setTransactions(txRes.data.data);
+      setSummary(sumRes.data.data);
     } catch (error) {
-      console.error('Failed to fetch summary:', error);
+      console.error('Failed to fetch data:', error);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchSummary();
-  }, [fetchSummary]);
+    fetchData();
+  }, [fetchData]);
 
-  // Realtime updates
-  useEffect(() => {
-    if (!userId) return;
+  // Use the currency from the first transaction, default to INR
+  const baseCurrency = transactions.length > 0 ? (transactions[0].currency || 'INR') : 'INR';
+  const currencySymbol = getCurrencySymbol(baseCurrency);
 
-    const channel = supabase
-      .channel('public:transactions')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'transactions',
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          console.log('Realtime update received:', payload);
-          fetchSummary(); // Refresh on any change
-        }
-      )
-      .subscribe();
+  // Derive limit dynamically if possible. Assuming 50k as a default limit if none provided.
+  const limit = summary?.monthlyLimit || 50000;
+  const spent = summary?.totalExpense || 0;
+  const progress = Math.min(spent / limit, 1);
+  const percentage = Math.round(progress * 100) || 0;
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [userId, fetchSummary]);
+  const renderItem = ({ item }: { item: any }) => {
+    const isExpense = item.type === 'expense';
+    let timeLabel = format(new Date(item.transaction_date), 'dd MMM');
+    if (isToday(new Date(item.transaction_date))) timeLabel = 'Today';
+    else if (isYesterday(new Date(item.transaction_date))) timeLabel = 'Yesterday';
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchSummary();
-    setRefreshing(false);
+    const formattedAmount = formatCurrency(item.amount, item.currency || baseCurrency);
+    // Split formatted string into main and decimal parts for styling
+    const splitIndex = formattedAmount.lastIndexOf('.');
+    const mainAmount = splitIndex !== -1 ? formattedAmount.substring(0, splitIndex) : formattedAmount;
+    const decimalAmount = splitIndex !== -1 ? formattedAmount.substring(splitIndex) : '.00';
+
+    return (
+      <View style={styles.txnRow}>
+        <View style={styles.txnDot} />
+        <View style={styles.txnContent}>
+          <Text style={styles.txnAmount}>
+            {mainAmount}
+            <Text style={{fontSize: 16, fontWeight: '400'}}>{decimalAmount}</Text>
+          </Text>
+          <View style={styles.txnSubRow}>
+            <View style={[styles.typeDot, { backgroundColor: isExpense ? '#007AFF' : colors.accentSecondary }]} />
+            <Text style={styles.txnCat}>{item.categories?.name || 'Other'}</Text>
+          </View>
+        </View>
+        <View style={styles.txnRight}>
+          <Text style={styles.txnDate}>{timeLabel}</Text>
+          <View style={styles.txnIconBtn}>
+             {isExpense ? <ArrowUpRight size={16} color={colors.textDark} /> : <ArrowDownRight size={16} color={colors.textDark} />}
+          </View>
+        </View>
+      </View>
+    );
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
-        <View style={styles.header}>
-          <Text style={styles.greeting}>Dashboard</Text>
-          <Text style={styles.month}>{format(new Date(), 'MMMM yyyy')}</Text>
+    <View style={styles.container}>
+      {/* Top Green Section */}
+      <View style={styles.topSection}>
+        <SafeAreaView edges={['top']}>
+          <View style={styles.header}>
+             <View style={styles.headerLeft}>
+               <Text style={styles.headerTitle}>Dashboard</Text>
+             </View>
+             <IconButton icon={Grid} variant="black" size={44} onPress={() => {}} />
+          </View>
+          
+          <View style={styles.planSection}>
+            <View style={styles.planTextRow}>
+               <Text style={styles.planPercent}>{percentage}%</Text>
+               <Text style={styles.planLabel}>Plan Expenses</Text>
+            </View>
+            <ProgressBar 
+               progress={progress} 
+               height={64} 
+               fillColor={colors.secondary} 
+               trackColor="rgba(255,255,255,0.4)" 
+               usePatternTrack 
+               style={{ marginTop: spacing.md }} 
+            />
+          </View>
+        </SafeAreaView>
+      </View>
+
+      {/* Bottom Black Section */}
+      <View style={styles.bottomSection}>
+        <View style={styles.historyHeader}>
+           <Text style={styles.historyTitle}>Expenses History</Text>
+           <TouchableOpacity><MoreHorizontal size={24} color={colors.textMuted} /></TouchableOpacity>
         </View>
+        
+        <FlatList
+          data={transactions}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={styles.list}
+          refreshing={loading}
+          onRefresh={fetchData}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={<Text style={{color: colors.textMuted, textAlign: 'center', marginTop: 20}}>No transactions found</Text>}
+        />
 
-        {summary && (
-          <>
-            <View style={styles.cardsRow}>
-              <View style={[styles.card, { backgroundColor: '#FEE2E2' }]}>
-                <Text style={styles.cardTitle}>Spent</Text>
-                <Text style={[styles.cardValue, { color: '#DC2626' }]}>
-                  ₹{summary.totalExpense.toLocaleString()}
-                </Text>
-              </View>
-              <View style={[styles.card, { backgroundColor: '#DCFCE7' }]}>
-                <Text style={styles.cardTitle}>Income</Text>
-                <Text style={[styles.cardValue, { color: '#16A34A' }]}>
-                  ₹{summary.totalIncome.toLocaleString()}
-                </Text>
-              </View>
-            </View>
 
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Category Breakdown</Text>
-              {summary.categoryBreakdown.map((cat: any) => (
-                <View key={cat.category} style={styles.catRow}>
-                  <Text style={styles.catName}>{cat.icon} {cat.category}</Text>
-                  <Text style={styles.catValue}>₹{cat.total.toLocaleString()}</Text>
-                </View>
-              ))}
-              {summary.categoryBreakdown.length === 0 && (
-                <Text style={styles.emptyText}>No expenses yet.</Text>
-              )}
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Recent Transactions</Text>
-              {summary.recentTransactions.map((t: any) => (
-                <View key={t.id} style={styles.txnRow}>
-                  <View>
-                    <Text style={styles.txnCat}>{t.categories?.name || 'Other'}</Text>
-                    <Text style={styles.txnDate}>{format(new Date(t.transaction_date), 'dd MMM')}</Text>
-                  </View>
-                  <Text style={[styles.txnAmount, t.type === 'expense' ? styles.expense : styles.income]}>
-                    {t.type === 'expense' ? '-' : '+'}₹{t.amount.toLocaleString()}
-                  </Text>
-                </View>
-              ))}
-              {summary.recentTransactions.length === 0 && (
-                <Text style={styles.emptyText}>No recent transactions.</Text>
-              )}
-            </View>
-          </>
-        )}
-      </ScrollView>
-    </SafeAreaView>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F3F4F6' },
-  header: { padding: 20 },
-  greeting: { fontSize: 28, fontWeight: 'bold', color: '#111827' },
-  month: { fontSize: 16, color: '#6B7280', marginTop: 4 },
-  cardsRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 12 },
-  card: { flex: 1, padding: 16, borderRadius: 12 },
-  cardTitle: { fontSize: 14, color: '#4B5563', marginBottom: 8 },
-  cardValue: { fontSize: 24, fontWeight: 'bold' },
-  section: { backgroundColor: '#fff', margin: 20, padding: 20, borderRadius: 12 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 16, color: '#111827' },
-  catRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  catName: { fontSize: 16, color: '#374151' },
-  catValue: { fontSize: 16, fontWeight: '500', color: '#111827' },
-  txnRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  txnCat: { fontSize: 16, color: '#374151', fontWeight: '500' },
-  txnDate: { fontSize: 12, color: '#9CA3AF', marginTop: 4 },
-  txnAmount: { fontSize: 16, fontWeight: 'bold' },
-  expense: { color: '#DC2626' },
-  income: { color: '#16A34A' },
-  emptyText: { color: '#9CA3AF', fontStyle: 'italic', textAlign: 'center', padding: 10 },
+  container: { flex: 1, backgroundColor: colors.secondary },
+  topSection: { 
+    backgroundColor: colors.accent, 
+    borderBottomLeftRadius: borderRadii.xl,
+    borderBottomRightRadius: borderRadii.xl,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.md },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  headerTitle: { ...typography.bodyLarge, fontWeight: '500' },
+  planSection: { marginTop: spacing.xxl },
+  planTextRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  planPercent: { ...typography.heading1, letterSpacing: -1 },
+  planLabel: { ...typography.bodyMedium, marginBottom: spacing.sm },
+  
+  bottomSection: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.xl },
+  historyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg },
+  historyTitle: { ...typography.bodyLarge, color: colors.textDark },
+  list: { paddingBottom: 150 },
+  
+  txnRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg },
+  txnDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'transparent' }, 
+  txnContent: { flex: 1, marginLeft: 4 },
+  txnAmount: { ...typography.heading3, color: colors.textDark, marginBottom: 4 },
+  txnSubRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  typeDot: { width: 6, height: 6, borderRadius: 3 },
+  txnCat: { ...typography.bodyMedium, color: colors.textMuted },
+  txnRight: { alignItems: 'flex-end', justifyContent: 'space-between', height: 48 },
+  txnDate: { ...typography.bodyMedium, color: colors.textMuted },
+  txnIconBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: colors.cardDark, justifyContent: 'center', alignItems: 'center' },
+
 });

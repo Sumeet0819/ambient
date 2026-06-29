@@ -1,7 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { config } from '../../config';
 import { logger } from '../../shared/logger';
-import WebSocket from 'ws';
 
 let supabaseInstance: SupabaseClient | null = null;
 
@@ -15,11 +14,7 @@ export function getSupabaseClient(): SupabaseClient {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
-      },
-      realtime: {
-        // @ts-ignore - Supabase type for transport is not perfectly aligned with ws
-        transport: WebSocket,
-      },
+      }
     });
     logger.info('✅  Supabase client initialised');
   }

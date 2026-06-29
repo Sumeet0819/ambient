@@ -79,6 +79,27 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 });
 
 /**
+ * DELETE /api/v1/transactions/reset
+ * Soft delete all transactions for the current user
+ */
+router.delete('/reset', async (req: AuthRequest, res: Response) => {
+  const supabase = getSupabaseClient();
+
+  const { error } = await supabase
+    .from('transactions')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('user_id', req.userId!)
+    .is('deleted_at', null);
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  res.json({ message: 'All transactions have been reset.' });
+});
+
+/**
  * DELETE /api/v1/transactions/:id
  * Soft delete
  */

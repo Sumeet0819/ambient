@@ -46,10 +46,12 @@ export async function initWhatsApp(): Promise<void> {
     DisconnectReason,
     fetchLatestBaileysVersion,
     makeCacheableSignalKeyStore,
-    useMultiFileAuthState,
   } = baileys;
 
-  const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
+  const { useSupabaseAuthState } = require('./useSupabaseAuthState');
+  const { getSupabaseClient } = require('../database/supabase');
+  const { state, saveCreds } = await useSupabaseAuthState(getSupabaseClient(), baileys);
+  
   const { version, isLatest } = await fetchLatestBaileysVersion();
   logger.info(`Using WA v${version.join('.')}${isLatest ? ' (latest)' : ''}`);
 

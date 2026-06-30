@@ -52,6 +52,14 @@ export const resetTransactions = createAsyncThunk(
   }
 );
 
+export const uploadReceiptOCR = createAsyncThunk(
+  'transactions/uploadReceiptOCR',
+  async (params: { imageBase64: string; mimeType: string }) => {
+    const response = await api.post('/transactions/ocr', params);
+    return response.data.data as Transaction[];
+  }
+);
+
 const transactionsSlice = createSlice({
   name: 'transactions',
   initialState,
@@ -87,6 +95,19 @@ const transactionsSlice = createSlice({
       .addCase(resetTransactions.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to reset transactions';
+      })
+      // Upload Receipt OCR
+      .addCase(uploadReceiptOCR.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(uploadReceiptOCR.fulfilled, (state, action) => {
+        state.loading = false;
+        // Prepend new transactions to the top of the list
+        state.items = [...action.payload, ...state.items];
+      })
+      .addCase(uploadReceiptOCR.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to process receipt image';
       });
   },
 });

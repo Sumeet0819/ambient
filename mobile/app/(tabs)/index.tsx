@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { format, isToday, isYesterday } from 'date-fns';
-import { ChevronLeft, Grid, MoreHorizontal, ArrowUpRight, ArrowDownRight, Search } from 'lucide-react-native';
+import { ChevronLeft, Grid, MoreHorizontal, ArrowUpRight, ArrowDownRight, Search, Layout, Camera } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { api } from '../../src/lib/api';
-import { fetchTransactions } from '../../src/store/transactions.slice';
+import { fetchTransactions, uploadReceiptOCR } from '../../src/store/transactions.slice';
 import { AppDispatch, RootState } from '../../src/store';
 import { typography, borderRadii, spacing, useThemeColors } from '../../src/constants/theme';
 import { IconButton } from '../../src/components/ui/IconButton';
@@ -13,6 +14,7 @@ import { ProgressBar } from '../../src/components/ui/ProgressBar';
 import { formatCurrency, getCurrencySymbol } from '../../src/lib/format';
 import { MotiView } from 'moti';
 import { Easing } from 'react-native-reanimated';
+import { useAlert } from '../../src/contexts/AlertContext';
 
 export default function TransactionsScreen() {
   const colors = useThemeColors();
@@ -22,6 +24,66 @@ export default function TransactionsScreen() {
   const [categories, setCategories] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [summary, setSummary] = useState<any>(null);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const { showAlert } = useAlert();
+
+  const handleOCR = async () => {
+    showAlert(
+      "Scan Receipt",
+      "Choose an option",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Camera",
+          onPress: async () => {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+              showAlert('Permissions Required', 'Camera permissions are required');
+              return;
+            }
+            let result = await ImagePicker.launchCameraAsync({
+              base64: true,
+              quality: 0.5,
+            });
+            if (!result.canceled && result.assets && result.assets[0].base64) {
+              processOCR(result.assets[0].base64, result.assets[0].mimeType || 'image/jpeg');
+            }
+          }
+        },
+        {
+          text: "Gallery",
+          onPress: async () => {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+              showAlert('Permissions Required', 'Gallery permissions are required');
+              return;
+            }
+            let result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              base64: true,
+              quality: 0.5,
+            });
+            if (!result.canceled && result.assets && result.assets[0].base64) {
+              processOCR(result.assets[0].base64, result.assets[0].mimeType || 'image/jpeg');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const processOCR = async (base64: string, mimeType: string) => {
+    setOcrLoading(true);
+    try {
+      await dispatch(uploadReceiptOCR({ imageBase64: base64, mimeType })).unwrap();
+      showAlert('Success', 'Transactions extracted successfully!');
+      fetchData(); // Refresh summary and transactions
+    } catch (e: any) {
+      showAlert('Error', e.message || 'Failed to process receipt');
+    } finally {
+      setOcrLoading(false);
+    }
+  };
 
   const fetchData = useCallback(async () => {
     dispatch(fetchTransactions({}));
@@ -116,7 +178,15 @@ export default function TransactionsScreen() {
              <View style={styles.headerLeft}>
                <Text style={styles.headerTitle}>Dashboard</Text>
              </View>
-             <IconButton icon={Grid} variant="black" size={44} onPress={() => {}} />
+             <View style={{flexDirection: 'row', gap: 12}}>
+               {ocrLoading ? (
+                 <View style={{width: 44, height: 44, justifyContent: 'center', alignItems: 'center'}}>
+                   <ActivityIndicator size="small" color={colors.secondary} />
+                 </View>
+               ) : (
+                 <IconButton icon={Camera} variant="black" size={44} onPress={handleOCR} />
+               )}
+             </View>
           </View>
           
           <View style={styles.planSection}>

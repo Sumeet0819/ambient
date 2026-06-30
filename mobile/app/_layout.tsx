@@ -65,10 +65,14 @@ function RootLayoutInner() {
   );
 }
 
+import { AlertProvider } from '../src/contexts/AlertContext';
+
 export default function RootLayout() {
   return (
     <Provider store={store}>
-      <RootLayoutInner />
+      <AlertProvider>
+        <RootLayoutInner />
+      </AlertProvider>
     </Provider>
   );
 }

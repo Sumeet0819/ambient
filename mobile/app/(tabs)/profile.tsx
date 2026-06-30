@@ -9,9 +9,51 @@ import { resetTransactions } from '../../src/store/transactions.slice';
 import { setLightMode } from '../../src/store/settings.slice';
 import { AppDispatch, RootState } from '../../src/store';
 import { typography, borderRadii, spacing, useThemeColors } from '../../src/constants/theme';
-import { MotiView } from 'moti';
+import { MotiView, MotiText } from 'moti';
 import { Easing } from 'react-native-reanimated';
-import { User, Smartphone, Mail, Fingerprint, Coins, Ghost, Key, Globe, ChevronRight, Edit2, LogOut, Database, Sun } from 'lucide-react-native';
+import { User, Smartphone, Fingerprint, Coins, Ghost, Database, LogOut, Sun, Moon, ChevronRight } from 'lucide-react-native';
+import { useAlert } from '../../src/contexts/AlertContext';
+
+const CustomSwitch = ({ value, onValueChange, activeColor, inactiveColor }: any) => {
+  return (
+    <TouchableOpacity 
+      activeOpacity={0.8} 
+      onPress={() => onValueChange(!value)}
+      style={{
+        width: 52,
+        height: 30,
+        borderRadius: 15,
+        backgroundColor: value ? activeColor : inactiveColor,
+        justifyContent: 'center',
+        paddingHorizontal: 3,
+        borderWidth: 1,
+        borderColor: value ? activeColor : 'rgba(150, 150, 150, 0.2)',
+      }}
+    >
+      <MotiView
+        animate={{
+          translateX: value ? 22 : 0,
+        }}
+        transition={{
+          type: 'timing',
+          duration: 250,
+          easing: Easing.out(Easing.ease)
+        }}
+        style={{
+          width: 22,
+          height: 22,
+          borderRadius: 11,
+          backgroundColor: '#FFFFFF',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.2,
+          shadowRadius: 2,
+          elevation: 2,
+        }}
+      />
+    </TouchableOpacity>
+  );
+};
 
 export default function ProfileScreen() {
   const colors = useThemeColors();
@@ -19,6 +61,7 @@ export default function ProfileScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const isLightMode = useSelector((state: RootState) => state.settings.isLightMode);
   const { data: profile, loading, error: fetchError } = useSelector((state: RootState) => state.profile);
+  const { showAlert } = useAlert();
   
   const [name, setName] = useState(profile?.name || '');
   const [phone, setPhone] = useState(profile?.phone_number || '');
@@ -26,7 +69,7 @@ export default function ProfileScreen() {
   const [phoneSaving, setPhoneSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
 
-  // Mock switches for the new UI
+  // Switches for the new UI
   const [faceId, setFaceId] = useState(true);
   const [showCoins, setShowCoins] = useState(false);
   const [incognito, setIncognito] = useState(false);
@@ -45,9 +88,9 @@ export default function ProfileScreen() {
     setSaving(true);
     try {
       await dispatch(updateProfile({ name })).unwrap();
-      alert('Name updated successfully!');
+      showAlert('Success', 'Name updated successfully!');
     } catch (e: any) {
-      alert(e.message || 'Failed to update name');
+      showAlert('Error', e.message || 'Failed to update name');
     } finally {
       setSaving(false);
     }
@@ -58,13 +101,12 @@ export default function ProfileScreen() {
     setPhoneSaving(true);
     try {
       const code = await dispatch(generateLinkCode(profile.id)).unwrap();
-      Alert.alert(
+      showAlert(
         "Link WhatsApp",
-        `Send the following code to our WhatsApp bot:\n\n${code}\n\nYour account will be linked automatically.`,
-        [{ text: "OK" }]
+        `Send the following code to our WhatsApp bot:\n\n${code}\n\nYour account will be linked automatically.`
       );
     } catch (e: any) {
-      alert(e.message || 'Failed to generate link code');
+      showAlert('Error', e.message || 'Failed to generate link code');
     } finally {
       setPhoneSaving(false);
     }
@@ -72,7 +114,7 @@ export default function ProfileScreen() {
 
 
   const handleResetTransactions = () => {
-    Alert.alert(
+    showAlert(
       "Reset Transactions",
       "Delete ALL your transactions? This cannot be undone.",
       [
@@ -84,9 +126,9 @@ export default function ProfileScreen() {
             setResetting(true);
             try {
               await dispatch(resetTransactions()).unwrap();
-              alert('Transactions reset.');
+              showAlert('Reset Complete', 'Transactions reset.');
             } catch (e: any) {
-              alert(e.message || 'Failed to reset.');
+              showAlert('Error', e.message || 'Failed to reset.');
             } finally {
               setResetting(false);
             }
@@ -139,9 +181,6 @@ export default function ProfileScreen() {
                 <Text style={styles.avatarText}>
                   {profile?.name ? profile.name.charAt(0).toUpperCase() : 'U'}
                 </Text>
-                <TouchableOpacity style={styles.editBadge}>
-                  <Edit2 size={12} color={colors.primary} />
-                </TouchableOpacity>
               </View>
             </View>
           </MotiView>
@@ -183,18 +222,8 @@ export default function ProfileScreen() {
                     {profile?.phone_number ? profile.phone_number : 'Not linked (Tap to link)'}
                   </Text>
                 </View>
-                {phoneSaving ? <ActivityIndicator size="small" color={colors.primary} /> : <ChevronRight size={20} color={colors.textMuted} />}
+                {phoneSaving ? <ActivityIndicator size="small" color={colors.primary} /> : <View style={styles.actionBtn}><Text style={styles.actionBtnText}>Link</Text></View>}
               </TouchableOpacity>
-
-              {/* Email Row (Mock) */}
-              <View style={styles.settingRow}>
-                <Mail size={24} color={colors.primary} style={styles.rowIcon} />
-                <View style={styles.rowTextCol}>
-                  <Text style={styles.rowSubLabel}>Email address</Text>
-                  <Text style={styles.rowTextValue}>{profile?.email || 'user@example.com'}</Text>
-                </View>
-                <ChevronRight size={20} color={colors.textMuted} />
-              </View>
             </View>
 
             {/* Settings Section */}
@@ -205,57 +234,43 @@ export default function ProfileScreen() {
                 <Fingerprint size={24} color={colors.primary} style={styles.rowIcon} />
                 <View style={styles.rowTextCol}>
                   <Text style={styles.rowTextValue}>Allow Face ID</Text>
-                  <Text style={styles.rowSubLabel}>Use Face ID to enter into the app</Text>
+                  <Text style={styles.rowSubLabel}>Biometric login</Text>
                 </View>
-                <Switch value={faceId} onValueChange={setFaceId} trackColor={{ true: colors.accent, false: colors.cardLight }} />
+                <CustomSwitch value={faceId} onValueChange={setFaceId} activeColor={colors.accent} inactiveColor={colors.cardLight} />
               </View>
 
               <View style={styles.settingRow}>
                 <Coins size={24} color={colors.primary} style={styles.rowIcon} />
                 <View style={styles.rowTextCol}>
-                  <Text style={styles.rowTextValue}>Showing Coins</Text>
-                  <Text style={styles.rowSubLabel}>Amounts in the format 00.00</Text>
+                  <Text style={styles.rowTextValue}>Show Decimals</Text>
+                  <Text style={styles.rowSubLabel}>Display cents</Text>
                 </View>
-                <Switch value={showCoins} onValueChange={setShowCoins} trackColor={{ true: colors.accent, false: colors.cardLight }} />
+                <CustomSwitch value={showCoins} onValueChange={setShowCoins} activeColor={colors.accent} inactiveColor={colors.cardLight} />
               </View>
 
               <View style={styles.settingRow}>
                 <Ghost size={24} color={colors.primary} style={styles.rowIcon} />
                 <View style={styles.rowTextCol}>
-                  <Text style={styles.rowTextValue}>Incognito mode</Text>
-                  <Text style={styles.rowSubLabel}>The balance will be hidden</Text>
+                  <Text style={styles.rowTextValue}>Incognito Mode</Text>
+                  <Text style={styles.rowSubLabel}>Hide balances</Text>
                 </View>
-                <Switch value={incognito} onValueChange={setIncognito} trackColor={{ true: colors.accent, false: colors.cardLight }} />
+                <CustomSwitch value={incognito} onValueChange={setIncognito} activeColor={colors.accent} inactiveColor={colors.cardLight} />
               </View>
 
               <View style={styles.settingRow}>
-                <Sun size={24} color={colors.primary} style={styles.rowIcon} />
+                {isLightMode ? (
+                  <Sun size={24} color={colors.primary} style={styles.rowIcon} />
+                ) : (
+                  <Moon size={24} color={colors.primary} style={styles.rowIcon} />
+                )}
                 <View style={styles.rowTextCol}>
                   <Text style={styles.rowTextValue}>Light Mode</Text>
-                  <Text style={styles.rowSubLabel}>Switch to bright colors</Text>
+                  <Text style={styles.rowSubLabel}>Toggle theme</Text>
                 </View>
-                <Switch value={isLightMode} onValueChange={(val) => dispatch(setLightMode(val))} trackColor={{ true: colors.accent, false: colors.cardLight }} />
+                <CustomSwitch value={isLightMode} onValueChange={(val: boolean) => dispatch(setLightMode(val))} activeColor={colors.accent} inactiveColor={colors.cardLight} />
               </View>
               
               <View style={styles.divider} />
-
-              <TouchableOpacity style={styles.settingRow}>
-                <Key size={24} color={colors.primary} style={styles.rowIcon} />
-                <View style={styles.rowTextCol}>
-                  <Text style={styles.rowTextValue}>Code to enter into the app</Text>
-                  <Text style={styles.rowSubLabel}>Change entrance code</Text>
-                </View>
-                <ChevronRight size={20} color={colors.textMuted} />
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.settingRow}>
-                <Globe size={24} color={colors.primary} style={styles.rowIcon} />
-                <View style={styles.rowTextCol}>
-                  <Text style={styles.rowTextValue}>Language</Text>
-                  <Text style={styles.rowSubLabel}>English</Text>
-                </View>
-                <ChevronRight size={20} color={colors.textMuted} />
-              </TouchableOpacity>
               
               <TouchableOpacity style={styles.settingRow} onPress={handleResetTransactions}>
                 <Database size={24} color={colors.accentSecondary} style={styles.rowIcon} />
@@ -263,7 +278,7 @@ export default function ProfileScreen() {
                   <Text style={[styles.rowTextValue, { color: colors.accentSecondary }]}>Reset Data</Text>
                   <Text style={styles.rowSubLabel}>Delete all transactions</Text>
                 </View>
-                {resetting ? <ActivityIndicator size="small" color={colors.accentSecondary} /> : <ChevronRight size={20} color={colors.textMuted} />}
+                {resetting ? <ActivityIndicator size="small" color={colors.accentSecondary} /> : <View style={[styles.actionBtn, {backgroundColor: 'rgba(255, 107, 107, 0.15)'}]}><Text style={[styles.actionBtnText, {color: colors.accentSecondary}]}>Reset</Text></View>}
               </TouchableOpacity>
             </View>
 
@@ -396,6 +411,20 @@ const getStyles = (colors: any) => StyleSheet.create({
     color: colors.textMuted, 
     ...typography.bodyMedium, 
     fontWeight: '600'
+  },
+
+  actionBtn: {
+    backgroundColor: colors.accent,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: borderRadii.pill,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionBtnText: {
+    ...typography.label,
+    color: colors.secondary,
+    fontWeight: '700',
   },
 
   btnRetry: {

@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { authMiddleware, AuthRequest } from '../../shared/middleware/auth.middleware';
 import { getSupabaseClient } from '../database/supabase';
+import { parseReceiptImage } from '../ai/ai.service';
 
 const router = Router();
 
@@ -118,6 +119,70 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
   }
 
   res.json({ message: 'Transaction deleted' });
+});
+
+/**
+ * POST /api/v1/transactions/ocr
+ * Process a receipt image
+ */
+router.post('/ocr', async (req: AuthRequest, res: Response) => {
+  const { imageBase64, mimeType } = req.body;
+  if (!imageBase64 || !mimeType) {
+    res.status(400).json({ error: 'imageBase64 and mimeType are required' });
+    return;
+  }
+
+  try {
+    const parsed = await parseReceiptImage(imageBase64, mimeType);
+    if (!parsed || !parsed.isFinancial || parsed.transactions.length === 0) {
+      res.status(400).json({ error: 'Could not extract any transactions from the image.' });
+      return;
+    }
+
+    const supabase = getSupabaseClient();
+    const createdTransactions = [];
+
+    for (const t of parsed.transactions) {
+      let categoryId = null;
+      if (t.category) {
+        const { data: cat } = await supabase
+          .from('categories')
+          .select('id')
+          .eq('user_id', req.userId!)
+          .ilike('name', t.category)
+          .single();
+        if (cat) categoryId = cat.id;
+      }
+
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert({
+          user_id: req.userId!,
+          type: t.type === 'unknown' ? 'expense' : t.type,
+          amount: t.amount ?? 0,
+          currency: t.currency ?? 'INR',
+          merchant: t.merchant,
+          category_id: categoryId,
+          payment_method: t.paymentMethod,
+          notes: t.notes,
+          transaction_date: new Date().toISOString(),
+        })
+        .select(`
+          id, type, amount, currency, merchant,
+          payment_method, notes, transaction_date, created_at,
+          categories ( name, icon, color )
+        `)
+        .single();
+
+      if (!error && data) {
+        createdTransactions.push(data);
+      }
+    }
+
+    res.status(201).json({ data: createdTransactions });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;

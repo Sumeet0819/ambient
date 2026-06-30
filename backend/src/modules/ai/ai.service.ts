@@ -105,6 +105,13 @@ export async function parseTransaction(text: string): Promise<ParsedMessage | nu
   return _callGemini(text, 0);
 }
 
+/**
+ * Parse a receipt image and extract transaction data using Gemini Vision.
+ */
+export async function parseReceiptImage(base64Image: string, mimeType: string): Promise<ParsedMessage | null> {
+  return _callGeminiWithImage(base64Image, mimeType, 0);
+}
+
 async function _callGemini(text: string, attempt: number): Promise<ParsedMessage | null> {
   try {
     const response = await ai.models.generateContent({
@@ -160,6 +167,72 @@ async function _callGemini(text: string, attempt: number): Promise<ParsedMessage
       return _callGemini(text, 1);
     }
     logger.error({ err, text }, 'Gemini API call failed');
+    return null;
+  }
+}
+
+async function _callGeminiWithImage(base64Image: string, mimeType: string, attempt: number): Promise<ParsedMessage | null> {
+  try {
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: [
+        { 
+          role: 'user', 
+          parts: [
+            { text: `${SYSTEM_PROMPT}\n\nParse the transactions from this receipt/bill image.` },
+            {
+              inlineData: {
+                data: base64Image,
+                mimeType: mimeType,
+              }
+            }
+          ] 
+        },
+      ],
+      config: {
+        tools: [{ functionDeclarations: [extractTransactionTool] }],
+        toolConfig: { functionCallingConfig: { mode: 'ANY' as any } },
+      },
+    });
+
+    const candidate = response.candidates?.[0];
+    const part = candidate?.content?.parts?.[0];
+
+    if (!part?.functionCall?.args) {
+      logger.warn('Gemini returned no function call for receipt image');
+      return null;
+    }
+
+    const raw = part.functionCall.args as any;
+    
+    const mappedTransactions = (raw.transactions || []).map((t: any) => ({
+      ...t,
+      amount: t.amount ?? null,
+      merchant: t.merchant ?? null,
+      category: t.category ?? null,
+      paymentMethod: t.paymentMethod ?? null,
+      notes: t.notes ?? null,
+    }));
+
+    const parsed = ParsedMessageSchema.safeParse({
+      isFinancial: raw.isFinancial ?? false,
+      transactions: mappedTransactions,
+    });
+
+    if (!parsed.success) {
+      logger.error({ errors: parsed.error.flatten(), raw }, 'Gemini response failed Zod validation (Image)');
+      return null;
+    }
+
+    logger.debug({ result: parsed.data }, 'Gemini receipt parsed');
+    return parsed.data;
+  } catch (err: any) {
+    if (err?.status === 429 && attempt === 0) {
+      const retryAfterMs = _parseRetryDelay(err?.message) ?? 5000;
+      await new Promise((r) => setTimeout(r, retryAfterMs));
+      return _callGeminiWithImage(base64Image, mimeType, 1);
+    }
+    logger.error({ err }, 'Gemini API call with image failed');
     return null;
   }
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, ChevronDown, MoreHorizontal, Calendar as CalendarIcon, Upload, ArrowUpRight } from 'lucide-react-native';
 import { format, getDate, getDaysInMonth, startOfMonth, getDay } from 'date-fns';
@@ -222,16 +222,19 @@ export default function AnalyticsScreen() {
       </MotiView>
 
       <Modal visible={isEditingLimit} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView 
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Set Monthly Limit</Text>
             <TextInput 
               style={styles.limitInput}
               value={limitInput}
               onChangeText={setLimitInput}
-              keyboardType="numeric"
               placeholder="Enter amount"
               placeholderTextColor={colors.textMuted}
+              autoFocus
             />
             <View style={styles.modalActions}>
               <TouchableOpacity onPress={() => setIsEditingLimit(false)} style={styles.modalBtn}>
@@ -242,7 +245,7 @@ export default function AnalyticsScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

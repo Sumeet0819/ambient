@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, ChevronDown, MoreHorizontal, Calendar as CalendarIcon, Upload, ArrowUpRight } from 'lucide-react-native';
 import { format, getDate, getDaysInMonth, startOfMonth, getDay } from 'date-fns';
@@ -18,6 +18,8 @@ export default function AnalyticsScreen() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isEditingLimit, setIsEditingLimit] = useState(false);
+  const [limitInput, setLimitInput] = useState('');
 
   const currentMonth = new Date();
   
@@ -70,6 +72,22 @@ export default function AnalyticsScreen() {
 
   const dailyFormatted = formatAmountSplit(dailySpent);
 
+  const handleSaveLimit = async () => {
+    const val = parseFloat(limitInput);
+    if (!isNaN(val) && val > 0) {
+      try {
+        await api.post('/analytics/monthly-limit', {
+          month: format(currentMonth, 'yyyy-MM'),
+          limit: val
+        });
+        setSummary((prev: any) => ({ ...prev, monthlyLimit: val }));
+      } catch (error) {
+        console.error('Failed to update limit:', error);
+      }
+    }
+    setIsEditingLimit(false);
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -96,13 +114,15 @@ export default function AnalyticsScreen() {
         >
           <View style={styles.weekDaysRow}>
             {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => (
-              <Text key={i} style={styles.weekDayText}>{day}</Text>
+              <View key={i} style={styles.dayCellWrapper}>
+                <Text style={styles.weekDayText}>{day}</Text>
+              </View>
             ))}
           </View>
           
           <View style={styles.daysGrid}>
             {calendarGrid.map((day, i) => {
-              if (!day) return <View key={`empty-${i}`} style={styles.dayCell} />;
+              if (!day) return <View key={`empty-${i}`} style={styles.dayCellWrapper} />;
               
               let bg = 'transparent';
               let color = colors.textLight;
@@ -117,13 +137,15 @@ export default function AnalyticsScreen() {
               }
 
               return (
-                <TouchableOpacity 
-                  key={`day-${day}`} 
-                  style={[styles.dayCell, { backgroundColor: bg }]}
-                  onPress={() => setSelectedDate(day)}
-                >
-                  <Text style={[styles.dayText, { color }]}>{day}</Text>
-                </TouchableOpacity>
+                <View key={`day-wrap-${day}`} style={styles.dayCellWrapper}>
+                  <TouchableOpacity 
+                    key={`day-${day}`} 
+                    style={[styles.dayCell, { backgroundColor: bg }]}
+                    onPress={() => setSelectedDate(day)}
+                  >
+                    <Text style={[styles.dayText, { color }]}>{day}</Text>
+                  </TouchableOpacity>
+                </View>
               );
             })}
           </View>
@@ -151,10 +173,16 @@ export default function AnalyticsScreen() {
           transition={{ type: 'timing', duration: 400, delay: 300, easing: Easing.out(Easing.ease) }}
           style={styles.progressSection}
         >
-          <View style={styles.progressRowHeader}>
+          <TouchableOpacity 
+            style={styles.progressRowHeader}
+            onPress={() => {
+              setLimitInput(limit.toString());
+              setIsEditingLimit(true);
+            }}
+          >
             <Text style={styles.progressTitle}>Financial</Text>
-            <Text style={styles.progressSub}>of {formatCurrency(limit, baseCurrency)} spent</Text>
-          </View>
+            <Text style={styles.progressSub}>of {formatCurrency(limit, baseCurrency)} spent <Text style={{textDecorationLine: 'underline'}}>Edit</Text></Text>
+          </TouchableOpacity>
           <ProgressBar progress={totalSpent/limit || 0} height={16} fillColor={colors.secondary} trackColor={colors.cardLight} />
         </MotiView>
 
@@ -192,6 +220,30 @@ export default function AnalyticsScreen() {
             </View>
          )}
       </MotiView>
+
+      <Modal visible={isEditingLimit} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Set Monthly Limit</Text>
+            <TextInput 
+              style={styles.limitInput}
+              value={limitInput}
+              onChangeText={setLimitInput}
+              keyboardType="numeric"
+              placeholder="Enter amount"
+              placeholderTextColor={colors.textMuted}
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity onPress={() => setIsEditingLimit(false)} style={styles.modalBtn}>
+                <Text style={styles.modalBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleSaveLimit} style={[styles.modalBtn, { backgroundColor: colors.accent }]}>
+                <Text style={[styles.modalBtnText, { color: colors.primary }]}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -205,10 +257,11 @@ const getStyles = (colors: any) => StyleSheet.create({
   monthText: { ...typography.bodyMedium, fontWeight: '500' },
   
   calendarContainer: { marginBottom: spacing.xl },
-  weekDaysRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: spacing.sm, marginBottom: spacing.md },
-  weekDayText: { width: 36, textAlign: 'center', ...typography.bodyMedium, color: colors.textMuted },
-  daysGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: spacing.sm },
-  dayCell: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginBottom: spacing.sm },
+  weekDaysRow: { flexDirection: 'row', paddingHorizontal: spacing.sm, marginBottom: spacing.md },
+  weekDayText: { textAlign: 'center', ...typography.bodyMedium, color: colors.textMuted },
+  daysGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: spacing.sm },
+  dayCellWrapper: { width: '14.28%', alignItems: 'center', marginBottom: spacing.sm },
+  dayCell: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
   dayText: { ...typography.bodyMedium, fontWeight: '500' },
   
   dateDetailsRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg },
@@ -232,5 +285,13 @@ const getStyles = (colors: any) => StyleSheet.create({
   amountItem: { alignItems: 'flex-start' },
   amountText: { color: colors.textDark, ...typography.heading3 },
   amountDecimal: { fontSize: 14, fontWeight: '400' },
-  amountActiveIndicator: { width: 40, height: 4, backgroundColor: colors.accent, borderRadius: 2, marginTop: 8 }
+  amountActiveIndicator: { width: 40, height: 4, backgroundColor: colors.accent, borderRadius: 2, marginTop: 8 },
+  
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { backgroundColor: colors.cardLight, padding: spacing.xl, borderRadius: borderRadii.lg, width: '80%' },
+  modalTitle: { ...typography.heading3, marginBottom: spacing.md, color: colors.textLight },
+  limitInput: { backgroundColor: colors.primary, color: colors.textLight, padding: spacing.md, borderRadius: borderRadii.md, ...typography.bodyLarge, marginBottom: spacing.lg },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.md },
+  modalBtn: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: borderRadii.md },
+  modalBtnText: { ...typography.bodyMedium, color: colors.textLight, fontWeight: '600' }
 });

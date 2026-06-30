@@ -13,6 +13,7 @@ export interface MonthlySummary {
     total: number;
   }>;
   recentTransactions: any[];
+  monthlyLimit?: number;
 }
 
 /**
@@ -57,6 +58,17 @@ export async function getMonthlySummary(
 
   const transactions = txns ?? [];
 
+  // Fetch overall monthly limit
+  const { data: budgetData } = await supabase
+    .from('budgets')
+    .select('limit_amount')
+    .eq('user_id', userId)
+    .eq('month', month)
+    .is('category_id', null)
+    .maybeSingle();
+
+  const monthlyLimit = budgetData?.limit_amount || 50000;
+
   const totalExpense = transactions
     .filter((t) => t.type === 'expense' || t.type === 'subscription')
     .reduce((sum, t) => sum + (t.amount ?? 0), 0);
@@ -93,5 +105,6 @@ export async function getMonthlySummary(
     netBalance: totalIncome - totalExpense,
     categoryBreakdown,
     recentTransactions,
+    monthlyLimit,
   };
 }

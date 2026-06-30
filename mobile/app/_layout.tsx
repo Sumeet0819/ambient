@@ -45,7 +45,7 @@ function RootLayoutInner() {
     return (
       <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
         <Text style={{ fontSize: 48, fontWeight: 'bold', color: '#20D770', letterSpacing: -1, marginBottom: 24 }}>
-          AI Finance
+          Ambient
         </Text>
         <ActivityIndicator color="#20D770" size="large" />
       </View>

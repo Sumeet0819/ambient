@@ -112,7 +112,7 @@ export async function registerWithEmail(
   // Insert user record in our users table using the clean service_role client
   let { data: user, error: insertError } = await supabase
     .from('users')
-    .insert({ email })
+    .insert({ id: data.user.id, email })
     .select('id')
     .single();
 

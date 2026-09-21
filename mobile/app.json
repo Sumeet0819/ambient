@@ -1,29 +1,27 @@
 {
   "expo": {
-    "name": "ambient",
-    "slug": "ambient",
+    "name": "Mora",
+    "slug": "Mora",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ambient.app"
+      "bundleIdentifier": "com.mora.app"
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#ffffff",
+        "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.ambient.app"
+      "package": "com.mora.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "scheme": "aifinance",
+    "scheme": "mora",
     "plugins": [
       "expo-router"
     ]

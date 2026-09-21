@@ -42,14 +42,7 @@ function RootLayoutInner() {
   }, [token, isReady, segments, router]);
 
   if (!isReady || !fontsLoaded) {
-    return (
-      <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ fontSize: 48, fontWeight: 'bold', color: '#20D770', letterSpacing: -1, marginBottom: 24 }}>
-          Ambient
-        </Text>
-        <ActivityIndicator color="#20D770" size="large" />
-      </View>
-    );
+    return null;
   }
 
   let statusBarStyle: 'light' | 'dark' | 'auto' | 'inverted' = isLightMode ? 'dark' : 'light';

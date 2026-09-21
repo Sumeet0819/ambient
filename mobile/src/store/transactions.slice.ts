@@ -54,7 +54,7 @@ export const resetTransactions = createAsyncThunk(
 
 export const uploadReceiptOCR = createAsyncThunk(
   'transactions/uploadReceiptOCR',
-  async (params: { imageBase64: string; mimeType: string }) => {
+  async (params: { extractedText: string }) => {
     const response = await api.post('/transactions/ocr', params);
     return response.data.data as Transaction[];
   }

@@ -40,13 +40,15 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
 
   const renderButtons = () => {
     const buttons = alertConfig.buttons || [{ text: 'OK' }];
+    const isRowLayout = buttons.length === 2;
+
     return (
-      <View style={styles.buttonContainer}>
+      <View style={[styles.buttonContainer, isRowLayout ? { flexDirection: 'row' } : { flexDirection: 'column' }]}>
         {buttons.map((btn, index) => {
           const isCancel = btn.style === 'cancel';
           const isDestructive = btn.style === 'destructive';
           
-          let btnColor = colors.cardDark;
+          let btnColor = colors.cardLight; // slightly lighter/darker than cardDark
           let textColor = colors.primary;
           
           if (isCancel) {
@@ -57,13 +59,17 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
             textColor = colors.accentSecondary; // Red
           } else {
             btnColor = colors.accent;
-            textColor = colors.secondary; // Black text on green
+            textColor = '#000000'; // Black text on neon green for high contrast
           }
 
           return (
             <TouchableOpacity
               key={index}
-              style={[styles.button, { backgroundColor: btnColor }]}
+              style={[
+                styles.button,
+                { backgroundColor: btnColor },
+                isRowLayout && { flex: 1 }
+              ]}
               onPress={() => {
                 hideAlert();
                 if (btn.onPress) {
@@ -95,16 +101,25 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
               style={styles.overlay}
             >
               <MotiView
-                from={{ scale: 0.9, opacity: 0, translateY: 20 }}
+                from={{ scale: 0.95, opacity: 0, translateY: 10 }}
                 animate={{ scale: 1, opacity: 1, translateY: 0 }}
-                exit={{ scale: 0.9, opacity: 0, translateY: 20 }}
+                exit={{ scale: 0.95, opacity: 0, translateY: 10 }}
                 transition={{ type: 'timing', duration: 250 }}
-                style={[styles.modalBox, { backgroundColor: colors.cardLight }]}
+                style={[
+                  styles.modalBox, 
+                  { 
+                    backgroundColor: colors.cardDark,
+                    borderColor: 'rgba(255, 255, 255, 0.05)',
+                    borderWidth: 1
+                  }
+                ]}
               >
-                <Text style={[styles.title, { color: colors.primary }]}>{alertConfig.title}</Text>
-                {alertConfig.message && (
-                  <Text style={[styles.message, { color: colors.textMuted }]}>{alertConfig.message}</Text>
-                )}
+                <View style={styles.textContainer}>
+                  <Text style={[styles.title, { color: colors.primary }]}>{alertConfig.title}</Text>
+                  {alertConfig.message && (
+                    <Text style={[styles.message, { color: colors.textMuted }]}>{alertConfig.message}</Text>
+                  )}
+                </View>
                 {renderButtons()}
               </MotiView>
             </MotiView>
@@ -118,7 +133,7 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.xl,
@@ -126,13 +141,19 @@ const styles = StyleSheet.create({
   modalBox: {
     width: '100%',
     maxWidth: 340,
-    borderRadius: borderRadii.lg,
-    padding: spacing.xl,
-    elevation: 10,
+    borderRadius: borderRadii.xl,
+    padding: spacing.lg,
+    elevation: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    overflow: 'hidden',
+  },
+  textContainer: {
+    marginBottom: spacing.xl,
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
   },
   title: {
     ...typography.heading3,
@@ -143,24 +164,20 @@ const styles = StyleSheet.create({
   message: {
     ...typography.bodyMedium,
     textAlign: 'center',
-    marginBottom: spacing.xl,
+    lineHeight: 22,
   },
   buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    flexWrap: 'wrap',
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   button: {
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
-    borderRadius: borderRadii.pill,
+    borderRadius: borderRadii.md,
     justifyContent: 'center',
     alignItems: 'center',
-    minWidth: 80,
   },
   buttonText: {
-    ...typography.label,
-    fontWeight: '700',
+    ...typography.bodyMedium,
+    fontWeight: '600',
   },
 });

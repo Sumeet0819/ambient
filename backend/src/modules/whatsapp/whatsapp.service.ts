@@ -72,7 +72,7 @@ export async function initWhatsApp(): Promise<void> {
 
     if (qr) {
       logger.info('📱  Scan the QR code below with WhatsApp to link your device:');
-      qrcode.generate(qr, { small: true });
+      qrcode.generate(qr, { small: false });
     }
 
     if (connection === 'close') {

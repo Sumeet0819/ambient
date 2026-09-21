@@ -15,6 +15,7 @@ import { formatCurrency, getCurrencySymbol } from '../../src/lib/format';
 import { MotiView } from 'moti';
 import { Easing } from 'react-native-reanimated';
 import { useAlert } from '../../src/contexts/AlertContext';
+import TextRecognition from '@react-native-ml-kit/text-recognition';
 
 export default function TransactionsScreen() {
   const colors = useThemeColors();
@@ -42,11 +43,10 @@ export default function TransactionsScreen() {
               return;
             }
             let result = await ImagePicker.launchCameraAsync({
-              base64: true,
               quality: 0.5,
             });
-            if (!result.canceled && result.assets && result.assets[0].base64) {
-              processOCR(result.assets[0].base64, result.assets[0].mimeType || 'image/jpeg');
+            if (!result.canceled && result.assets && result.assets[0].uri) {
+              processOCR(result.assets[0].uri);
             }
           }
         },
@@ -60,11 +60,10 @@ export default function TransactionsScreen() {
             }
             let result = await ImagePicker.launchImageLibraryAsync({
               mediaTypes: ImagePicker.MediaTypeOptions.Images,
-              base64: true,
               quality: 0.5,
             });
-            if (!result.canceled && result.assets && result.assets[0].base64) {
-              processOCR(result.assets[0].base64, result.assets[0].mimeType || 'image/jpeg');
+            if (!result.canceled && result.assets && result.assets[0].uri) {
+              processOCR(result.assets[0].uri);
             }
           }
         }
@@ -72,16 +71,29 @@ export default function TransactionsScreen() {
     );
   };
 
-  const processOCR = async (base64: string, mimeType: string) => {
+  const processOCR = async (uri: string) => {
     setOcrLoading(true);
     try {
-      await dispatch(uploadReceiptOCR({ imageBase64: base64, mimeType })).unwrap();
-      showAlert('Success', 'Transactions extracted successfully!');
-      fetchData(); // Refresh summary and transactions
-    } catch (e: any) {
-      showAlert('Error', e.message || 'Failed to process receipt');
-    } finally {
+      const recognitionResult = await TextRecognition.recognize(uri);
+      const extractedText = recognitionResult.text;
+
       setOcrLoading(false);
+
+      if (!extractedText || extractedText.trim() === '') {
+        showAlert('Error', 'No text found in the image.');
+        return;
+      }
+      
+      // Just preview the extracted text, no API call
+      showAlert(
+        'Extracted Text',
+        extractedText.substring(0, 1000) + (extractedText.length > 1000 ? '...' : ''),
+        [{ text: 'OK' }]
+      );
+
+    } catch (e: any) {
+      setOcrLoading(false);
+      showAlert('Error', e.message || 'Failed to extract text from image');
     }
   };
 

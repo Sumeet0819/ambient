@@ -66,7 +66,7 @@ const extractTransactionTool = {
                 description: 'Type of transaction',
               },
               amount: {
-                type: 'number',
+                type: ['number', 'null'],
                 description: 'Transaction amount as a number, or null if not found',
               },
               currency: {
@@ -74,19 +74,19 @@ const extractTransactionTool = {
                 description: 'Currency code, default INR',
               },
               merchant: {
-                type: 'string',
+                type: ['string', 'null'],
                 description: 'Merchant or person name, or null',
               },
               category: {
-                type: 'string',
+                type: ['string', 'null'],
                 description: 'Category: Food, Transport, Shopping, Entertainment, Health, Utilities, Rent, Salary, Investment, Subscription, Other, or null',
               },
               paymentMethod: {
-                type: 'string',
+                type: ['string', 'null'],
                 description: 'Payment method: cash, upi, card, netbanking, or null',
               },
               notes: {
-                type: 'string',
+                type: ['string', 'null'],
                 description: 'Any additional notes from the message, or null',
               },
             },

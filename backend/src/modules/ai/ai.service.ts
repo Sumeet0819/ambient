@@ -6,7 +6,7 @@ import { logger } from '../../shared/logger';
 // ── Groq client ────────────────────────────────────────────────────────────
 const groq = new Groq({ apiKey: config.GROQ_API_KEY });
 
-const TEXT_MODEL = 'llama-3.3-70b-versatile';
+const TEXT_MODEL = 'llama-3.1-70b-versatile';
 const VISION_MODEL = 'llama-3.2-11b-vision-preview';
 
 // ── Zod schema for validated AI output ───────────────────────────────────────

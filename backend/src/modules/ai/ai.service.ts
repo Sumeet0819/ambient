@@ -6,8 +6,8 @@ import { logger } from '../../shared/logger';
 // ── Groq client ────────────────────────────────────────────────────────────
 const groq = new Groq({ apiKey: config.GROQ_API_KEY });
 
-const TEXT_MODEL = 'llama-3.1-70b-versatile';
-const VISION_MODEL = 'llama-3.2-11b-vision-preview';
+const TEXT_MODEL = 'openai/gpt-oss-20b';
+const VISION_MODEL = 'qwen/qwen3.8-27b';
 
 // ── Zod schema for validated AI output ───────────────────────────────────────
 export const ParsedTransactionSchema = z.object({
@@ -129,14 +129,14 @@ async function _callGroq(text: string, attempt: number): Promise<ParsedMessage |
     });
 
     const toolCall = response.choices[0]?.message?.tool_calls?.[0];
-    
+
     if (!toolCall?.function?.arguments) {
       logger.warn({ text }, 'Groq returned no function call — not a financial message');
       return null;
     }
 
     const raw = JSON.parse(toolCall.function.arguments);
-    
+
     const mappedTransactions = (raw.transactions || []).map((t: any) => ({
       ...t,
       amount: t.amount ?? null,
@@ -176,8 +176,8 @@ async function _callGroqWithImage(base64Image: string, mimeType: string, attempt
       model: VISION_MODEL,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT + '\n\nPlease return a JSON object exactly matching the schema. Start with { and end with }.' },
-        { 
-          role: 'user', 
+        {
+          role: 'user',
           content: [
             { type: 'text', text: 'Parse the transactions from this receipt/bill image.' },
             { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Image}` } }
@@ -189,14 +189,14 @@ async function _callGroqWithImage(base64Image: string, mimeType: string, attempt
     });
 
     const content = response.choices[0]?.message?.content;
-    
+
     if (!content) {
       logger.warn('Groq returned no content for receipt image');
       return null;
     }
 
     const raw = JSON.parse(content);
-    
+
     const mappedTransactions = (raw.transactions || []).map((t: any) => ({
       ...t,
       amount: t.amount ?? null,

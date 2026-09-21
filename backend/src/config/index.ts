@@ -9,7 +9,7 @@ const envSchema = z.object({
   SUPABASE_URL: z.string().url({ message: 'SUPABASE_URL must be a valid URL' }),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, { message: 'SUPABASE_SERVICE_ROLE_KEY is required' }),
   JWT_SECRET: z.string().min(16, { message: 'JWT_SECRET must be at least 16 characters' }),
-  GEMINI_API_KEY: z.string().min(1, { message: 'GEMINI_API_KEY is required' }),
+  GROQ_API_KEY: z.string().min(1, { message: 'GROQ_API_KEY is required' }),
 });
 
 const parsed = envSchema.safeParse(process.env);

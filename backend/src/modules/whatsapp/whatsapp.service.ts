@@ -88,7 +88,7 @@ export async function initWhatsApp(): Promise<void> {
         logger.info('Reconnecting in 5 seconds…');
         setTimeout(() => initWhatsApp(), 5000);
       } else {
-        logger.error('Logged out from WhatsApp — delete the sessions/ folder and restart to re-link');
+        logger.error('Logged out from WhatsApp — clear the whatsapp_sessions table in Supabase and restart to re-link');
       }
     }
 

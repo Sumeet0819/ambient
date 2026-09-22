@@ -9,6 +9,7 @@ import { AppDispatch } from '../../src/store';
 import { typography, borderRadii, spacing, useThemeColors } from '../../src/constants/theme';
 import { ChevronRight } from 'lucide-react-native';
 import { MotiView } from 'moti';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function RegisterScreen() {
   const colors = useThemeColors();
@@ -43,6 +44,10 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <LinearGradient
+        colors={['#161616', '#0A0A0A']}
+        style={StyleSheet.absoluteFillObject}
+      />
       <MotiView
         from={{ opacity: 0, translateY: 20 }}
         animate={{ opacity: 1, translateY: 0 }}
@@ -98,20 +103,27 @@ export default function RegisterScreen() {
 }
 
 const getStyles = (colors: any) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.secondary },
+  container: { flex: 1, backgroundColor: '#0A0A0A' },
   content: { flex: 1, padding: spacing.xl, justifyContent: 'center' },
   
   header: { marginBottom: spacing.xxl },
-  title: { ...typography.heading1, color: colors.primary, marginBottom: spacing.sm, fontWeight: '700', letterSpacing: -1 },
-  subtitle: { ...typography.bodyLarge, color: colors.textMuted },
+  title: { ...typography.heading1, color: '#FFFFFF', marginBottom: spacing.sm, fontWeight: '700', letterSpacing: -1 },
+  subtitle: { ...typography.bodyLarge, color: 'rgba(255,255,255,0.55)' },
   
-  form: { marginBottom: spacing.xl },
+  form: { 
+    marginBottom: spacing.xl,
+    backgroundColor: '#141414',
+    padding: spacing.xl,
+    borderRadius: borderRadii.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+  },
   input: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: '#0A0A0A',
     borderRadius: borderRadii.md,
     padding: spacing.lg,
     ...typography.bodyLarge,
-    color: colors.primary,
+    color: '#FFFFFF',
     marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
@@ -120,7 +132,7 @@ const getStyles = (colors: any) => StyleSheet.create({
   error: { color: colors.accentSecondary, marginBottom: spacing.md, textAlign: 'center', ...typography.bodyMedium },
   
   button: {
-    backgroundColor: colors.accent,
+    backgroundColor: '#C1FFD7',
     padding: spacing.lg,
     borderRadius: borderRadii.pill,
     flexDirection: 'row',
@@ -128,8 +140,8 @@ const getStyles = (colors: any) => StyleSheet.create({
     justifyContent: 'center',
     marginTop: spacing.md,
   },
-  buttonText: { color: colors.secondary, ...typography.bodyLarge, fontWeight: '700' },
+  buttonText: { color: '#000000', ...typography.bodyLarge, fontWeight: '700' },
   
-  linkButton: { marginTop: spacing.xl, alignItems: 'center' },
-  linkText: { color: colors.textMuted, ...typography.bodyMedium },
+  linkButton: { marginTop: spacing.lg, alignItems: 'center' },
+  linkText: { color: 'rgba(255,255,255,0.55)', ...typography.bodyMedium },
 });

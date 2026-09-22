@@ -2,30 +2,32 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppDispatch } from './index';
 
+type ThemeMode = 'light' | 'dark' | 'system';
+
 interface SettingsState {
-  isLightMode: boolean;
+  themeMode: ThemeMode;
 }
 
 const initialState: SettingsState = {
-  isLightMode: false,
+  themeMode: 'system',
 };
 
 const settingsSlice = createSlice({
   name: 'settings',
   initialState,
   reducers: {
-    setThemeLocal(state, action: PayloadAction<boolean>) {
-      state.isLightMode = action.payload;
+    setThemeLocal(state, action: PayloadAction<ThemeMode>) {
+      state.themeMode = action.payload;
     },
   },
 });
 
 export const { setThemeLocal } = settingsSlice.actions;
 
-export const setLightMode = (isLight: boolean) => async (dispatch: AppDispatch) => {
-  dispatch(setThemeLocal(isLight));
+export const setThemeMode = (mode: ThemeMode) => async (dispatch: AppDispatch) => {
+  dispatch(setThemeLocal(mode));
   try {
-    await AsyncStorage.setItem('@theme_isLightMode', JSON.stringify(isLight));
+    await AsyncStorage.setItem('@theme_mode', mode);
   } catch (e) {
     // ignore
   }
@@ -33,9 +35,9 @@ export const setLightMode = (isLight: boolean) => async (dispatch: AppDispatch) 
 
 export const hydrateSettings = () => async (dispatch: AppDispatch) => {
   try {
-    const val = await AsyncStorage.getItem('@theme_isLightMode');
-    if (val !== null) {
-      dispatch(setThemeLocal(JSON.parse(val)));
+    const val = await AsyncStorage.getItem('@theme_mode');
+    if (val !== null && ['light', 'dark', 'system'].includes(val)) {
+      dispatch(setThemeLocal(val as ThemeMode));
     }
   } catch (e) {
     // ignore

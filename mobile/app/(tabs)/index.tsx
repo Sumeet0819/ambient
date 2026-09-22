@@ -1,334 +1,721 @@
-import { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ScrollView, ActivityIndicator } from 'react-native';
+import { useEffect, useCallback, useMemo, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+  ActivityIndicator,
+  Animated,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
+import { useRouter } from 'expo-router';
+import { Menu, Search, Minus, Plus, Check, Camera, Utensils, Car, ShoppingBag, Film, FileText, Heart, MoreHorizontal, Zap, Home } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { format, isToday, isYesterday } from 'date-fns';
-import { ChevronLeft, Grid, MoreHorizontal, ArrowUpRight, ArrowDownRight, Search, Layout, Camera } from 'lucide-react-native';
-import * as ImagePicker from 'expo-image-picker';
-import { api } from '../../src/lib/api';
-import { fetchTransactions, uploadReceiptOCR } from '../../src/store/transactions.slice';
 import { AppDispatch, RootState } from '../../src/store';
-import { typography, borderRadii, spacing, useThemeColors } from '../../src/constants/theme';
-import { IconButton } from '../../src/components/ui/IconButton';
-import { ProgressBar } from '../../src/components/ui/ProgressBar';
-import { formatCurrency, getCurrencySymbol } from '../../src/lib/format';
-import { MotiView } from 'moti';
-import { Easing } from 'react-native-reanimated';
-import { useAlert } from '../../src/contexts/AlertContext';
-import TextRecognition from '@react-native-ml-kit/text-recognition';
+import { fetchTransactions } from '../../src/store/transactions.slice';
+import { fetchProfile } from '../../src/store/profile.slice';
+import { useThemeColors, spacing, borderRadii } from '../../src/constants/theme';
+import { useOCR } from '../../src/hooks/useOCR';
+import { formatCurrency } from '../../src/lib/format';
 
-export default function TransactionsScreen() {
+const getCategoryIcon = (categoryName: string, color: string, size: number = 18) => {
+  switch (categoryName.toLowerCase()) {
+    case 'food':
+      return <Utensils size={size} color={color} />;
+    case 'transport':
+      return <Car size={size} color={color} />;
+    case 'shopping':
+      return <ShoppingBag size={size} color={color} />;
+    case 'entertainment':
+      return <Film size={size} color={color} />;
+    case 'bills':
+      return <FileText size={size} color={color} />;
+    case 'health':
+      return <Heart size={size} color={color} />;
+    case 'utilities':
+      return <Zap size={size} color={color} />;
+    case 'rent':
+      return <Home size={size} color={color} />;
+    default:
+      return <MoreHorizontal size={size} color={color} />;
+  }
+};
+
+const DEFAULT_CATEGORIES = [
+  { name: 'Food', color: '#FF6B6B' },
+  { name: 'Transport', color: '#4ECDC4' },
+  { name: 'Shopping', color: '#45B7D1' },
+  { name: 'Entertainment', color: '#96CEB4' },
+  { name: 'Health', color: '#FFEAA7' },
+  { name: 'Utilities', color: '#DDA0DD' },
+  { name: 'Rent', color: '#98D8C8' },
+  { name: 'Other', color: '#B0B0B0' },
+];
+
+interface CategorySpend {
+  name: string;
+  total: number;
+  percentage: number;
+  color: string;
+}
+
+const CategoryCard = ({ cat, baseCurrency }: { cat: CategorySpend; baseCurrency: string }) => {
+  const fillAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fillAnim, {
+      toValue: cat.percentage,
+      duration: 1000,
+      useNativeDriver: false,
+    }).start();
+  }, [cat.percentage]);
+
+  const widthInterpolation = fillAnim.interpolate({
+    inputRange: [0, 100],
+    outputRange: ['0%', '100%'],
+  });
+
+  return (
+    <View style={[styles.otherCatCard, { overflow: 'hidden' }]}>
+      {/* Animated Fill Background */}
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFill,
+          {
+            backgroundColor: `${cat.color}25`, // Slightly tinted background fill
+            width: widthInterpolation,
+          },
+        ]}
+      />
+      <View style={[styles.otherCatIconBg, { backgroundColor: `${cat.color}25` }]}>
+        {getCategoryIcon(cat.name, cat.color, 14)}
+      </View>
+      <View style={styles.otherCatInfo}>
+        <Text style={styles.otherCatName} numberOfLines={1}>
+          {cat.name}
+        </Text>
+        <Text style={styles.otherCatAmount}>
+          {formatCurrency(cat.total, baseCurrency)}
+        </Text>
+      </View>
+    </View>
+  );
+};
+
+export default function HomeScreen() {
+  const router = useRouter();
   const colors = useThemeColors();
-  const styles = getStyles(colors);
   const dispatch = useDispatch<AppDispatch>();
-  const { items: transactions, loading } = useSelector((state: RootState) => state.transactions);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [summary, setSummary] = useState<any>(null);
-  const [ocrLoading, setOcrLoading] = useState(false);
-  const { showAlert } = useAlert();
 
-  const handleOCR = async () => {
-    showAlert(
-      "Scan Receipt",
-      "Choose an option",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Camera",
-          onPress: async () => {
-            const { status } = await ImagePicker.requestCameraPermissionsAsync();
-            if (status !== 'granted') {
-              showAlert('Permissions Required', 'Camera permissions are required');
-              return;
-            }
-            let result = await ImagePicker.launchCameraAsync({
-              quality: 0.5,
-            });
-            if (!result.canceled && result.assets && result.assets[0].uri) {
-              processOCR(result.assets[0].uri);
-            }
-          }
-        },
-        {
-          text: "Gallery",
-          onPress: async () => {
-            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            if (status !== 'granted') {
-              showAlert('Permissions Required', 'Gallery permissions are required');
-              return;
-            }
-            let result = await ImagePicker.launchImageLibraryAsync({
-              mediaTypes: ImagePicker.MediaTypeOptions.Images,
-              quality: 0.5,
-            });
-            if (!result.canceled && result.assets && result.assets[0].uri) {
-              processOCR(result.assets[0].uri);
-            }
-          }
-        }
-      ]
-    );
-  };
+  const { items: transactions, loading } = useSelector(
+    (state: RootState) => state.transactions
+  );
+  const profile = useSelector((state: RootState) => state.profile.data);
+  const { handleOCR, ocrLoading } = useOCR();
 
-  const processOCR = async (uri: string) => {
-    setOcrLoading(true);
-    try {
-      const recognitionResult = await TextRecognition.recognize(uri);
-      const extractedText = recognitionResult.text;
-
-      setOcrLoading(false);
-
-      if (!extractedText || extractedText.trim() === '') {
-        showAlert('Error', 'No text found in the image.');
-        return;
-      }
-      
-      // Just preview the extracted text, no API call
-      showAlert(
-        'Extracted Text',
-        extractedText.substring(0, 1000) + (extractedText.length > 1000 ? '...' : ''),
-        [{ text: 'OK' }]
-      );
-
-    } catch (e: any) {
-      setOcrLoading(false);
-      showAlert('Error', e.message || 'Failed to extract text from image');
+  const fetchData = useCallback(() => {
+    dispatch(fetchTransactions());
+    if (!profile) {
+      dispatch(fetchProfile());
     }
-  };
-
-  const fetchData = useCallback(async () => {
-    dispatch(fetchTransactions({}));
-    try {
-      const [catRes, sumRes] = await Promise.all([
-        api.get('/categories'),
-        api.get(`/analytics/monthly?month=${format(new Date(), 'yyyy-MM')}`)
-      ]);
-      setCategories(catRes.data.data);
-      setSummary(sumRes.data.data);
-    } catch (e) {
-      console.log('Failed to fetch auxiliary data', e);
-    }
-  }, [dispatch]);
-
-
+  }, [dispatch, profile]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // Use the currency from the first transaction, default to INR
-  const baseCurrency = transactions.length > 0 ? (transactions[0].currency || 'INR') : 'INR';
-  const currencySymbol = getCurrencySymbol(baseCurrency);
+  // Derived financials from redux state
+  const { totalIncome, totalExpense, baseCurrency } = useMemo(() => {
+    let income = 0;
+    let expense = 0;
+    const currency =
+      transactions.length > 0 ? transactions[0].currency || 'INR' : 'INR';
+    for (const t of transactions) {
+      if (t.type === 'income') income += t.amount;
+      else expense += t.amount;
+    }
+    return { totalIncome: income, totalExpense: expense, baseCurrency: currency };
+  }, [transactions]);
 
-  const limit = summary?.monthlyLimit || 50000; // Temporary default to show UI progress
-  const spent = summary?.totalExpense || 0;
-  const progress = limit > 0 ? Math.min(spent / limit, 1) : 0;
-  const percentage = Math.round(progress * 100) || 0;
-  
-  const availableAmount = Math.max(limit - spent, 0);
-  const formattedAvailable = formatCurrency(availableAmount, baseCurrency);
-  const availSplitIndex = formattedAvailable.lastIndexOf('.');
-  const availMain = availSplitIndex !== -1 ? formattedAvailable.substring(0, availSplitIndex) : formattedAvailable;
-  const availDecimal = availSplitIndex !== -1 ? formattedAvailable.substring(availSplitIndex) : '.00';
+  const availableBalance = totalIncome - totalExpense;
 
-  const filteredTransactions = selectedCategory
-    ? transactions.filter(t => t.categories?.name === selectedCategory)
-    : transactions;
+  // Top 5 most recent transactions
+  const recentTransactions = useMemo(() => {
+    return [...transactions]
+      .sort((a, b) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime())
+      .slice(0, 5);
+  }, [transactions]);
 
-  const renderItem = ({ item }: { item: any }) => {
-    const isExpense = item.type === 'expense';
-    let timeLabel = format(new Date(item.transaction_date), 'dd MMM');
-    if (isToday(new Date(item.transaction_date))) timeLabel = 'Today';
-    else if (isYesterday(new Date(item.transaction_date))) timeLabel = 'Yesterday';
+  // Aggregate spending by category for the chart
+  const categorySpends = useMemo<CategorySpend[]>(() => {
+    const map: Record<string, { total: number, color: string }> = {};
+    
+    // Initialize with defaults
+    DEFAULT_CATEGORIES.forEach(cat => {
+      map[cat.name] = { total: 0, color: cat.color };
+    });
 
-    const formattedAmount = formatCurrency(item.amount, item.currency || baseCurrency);
-    // Split formatted string into main and decimal parts for styling
-    const splitIndex = formattedAmount.lastIndexOf('.');
-    const mainAmount = splitIndex !== -1 ? formattedAmount.substring(0, splitIndex) : formattedAmount;
-    const decimalAmount = splitIndex !== -1 ? formattedAmount.substring(splitIndex) : '.00';
+    for (const t of transactions) {
+      if (t.type !== 'expense') continue;
+      const name = t.categories?.name || 'Other';
+      const color = t.categories?.color || map['Other']?.color || '#B0B0B0';
+      
+      if (!map[name]) {
+        map[name] = { total: 0, color };
+      }
+      map[name].total += t.amount;
+    }
+    const entries = Object.entries(map).sort((a, b) => b[1].total - a[1].total);
+    const grandTotal = entries.reduce((s, [, v]) => s + v.total, 0);
+    return entries.map(([name, data]) => ({
+      name,
+      total: data.total,
+      percentage: grandTotal > 0 ? Math.round((data.total / grandTotal) * 100) : 0,
+      color: data.color,
+    }));
+  }, [transactions]);
 
-    return (
-      <MotiView 
-        from={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ type: 'timing', duration: 400, easing: Easing.bezier(0.25, 0.1, 0.25, 1) }}
-        style={styles.txnRow}
-      >
-        <View style={styles.txnDot} />
-        <View style={styles.txnContent}>
-          <Text style={styles.txnAmount}>
-            {mainAmount}
-            <Text style={{fontSize: 16, fontWeight: '400'}}>{decimalAmount}</Text>
-          </Text>
-          <View style={styles.txnSubRow}>
-            <View style={[styles.typeDot, { backgroundColor: isExpense ? '#007AFF' : colors.accentSecondary }]} />
-            <Text style={styles.txnCat}>{item.categories?.name || 'Other'}</Text>
-          </View>
-        </View>
-        <View style={styles.txnRight}>
-          <Text style={styles.txnDate}>{timeLabel}</Text>
-          <View style={styles.txnIconBtn}>
-             {isExpense ? <ArrowUpRight size={16} color={colors.textDark} /> : <ArrowDownRight size={16} color={colors.textDark} />}
-          </View>
-        </View>
-      </MotiView>
-    );
-  };
+  // Greeting name
+  const firstName = profile?.name?.split(' ')[0] || 'there';
 
   return (
     <View style={styles.container}>
-      {/* Top Green Section */}
-      <MotiView 
-        from={{ translateY: -100, opacity: 0 }}
-        animate={{ translateY: 0, opacity: 1 }}
-        transition={{ type: 'timing', duration: 500, easing: Easing.out(Easing.ease) }}
-        style={styles.topSection}
-      >
-        <SafeAreaView edges={['top']}>
-          <View style={styles.header}>
-             <View style={styles.headerLeft}>
-               <Text style={styles.headerTitle}>Dashboard</Text>
-             </View>
-             <View style={{flexDirection: 'row', gap: 12}}>
-               {ocrLoading ? (
-                 <View style={{width: 44, height: 44, justifyContent: 'center', alignItems: 'center'}}>
-                   <ActivityIndicator size="small" color={colors.secondary} />
-                 </View>
-               ) : (
-                 <IconButton icon={Camera} variant="black" size={44} onPress={handleOCR} />
-               )}
-             </View>
-          </View>
-          
-          <View style={styles.planSection}>
-            <View style={{ marginBottom: spacing.md }}>
-               <Text style={[typography.displayDigital, { color: colors.secondary, letterSpacing: -1, lineHeight: 60 }]} numberOfLines={1} adjustsFontSizeToFit>
-                 {availMain}<Text style={{ opacity: 0.5 }}>{availDecimal}</Text>
-               </Text>
-               <Text style={{ fontFamily: 'Quantico_700Bold', color: colors.secondary, fontSize: 12, marginTop: 2, letterSpacing: 1 }}>
-                 AVAILABLE
-               </Text>
-            </View>
-            <View style={styles.planTextRow}>
-               <Text style={styles.planPercent}>{percentage}%</Text>
-               <Text style={styles.planLabel}>Plan Expenses</Text>
-            </View>
-            <ProgressBar 
-               progress={progress} 
-               height={64} 
-               fillColor={colors.secondary} 
-               trackColor="rgba(255,255,255,0.4)" 
-               usePatternTrack 
-               style={{ marginTop: spacing.md }} 
-            />
-          </View>
-        </SafeAreaView>
-      </MotiView>
+      {/* Ambient gradient background: green-ish top fading to dark */}
+      <LinearGradient
+        colors={['#C8F0D8', '#C4E8C4', '#252527', '#1C1C1E']}
+        locations={[0, 0.08, 0.34, 1]}
+        style={StyleSheet.absoluteFillObject}
+      />
 
-      {/* Bottom Black Section */}
-      <MotiView 
-        from={{ opacity: 0, translateY: 50 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 500, delay: 150, easing: Easing.out(Easing.ease) }}
-        style={styles.bottomSection}
-      >
-        <View style={styles.historyHeader}>
-           <Text style={styles.historyTitle}>Expenses History</Text>
-           <TouchableOpacity><MoreHorizontal size={24} color={colors.textMuted} /></TouchableOpacity>
-        </View>
-
-        {/* Filter Pills */}
-        <View style={styles.filterPillsContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterPillsScroll}>
-            <TouchableOpacity
-              style={[styles.filterPill, !selectedCategory && styles.filterPillActive]}
-              onPress={() => setSelectedCategory(null)}
-            >
-              <Text style={[styles.filterPillText, !selectedCategory && styles.filterPillTextActive]}>All</Text>
-            </TouchableOpacity>
-            {categories.map((cat) => (
-              <TouchableOpacity
-                key={cat.id}
-                style={[styles.filterPill, selectedCategory === cat.name && styles.filterPillActive]}
-                onPress={() => setSelectedCategory(cat.name)}
-              >
-                <Text style={[styles.filterPillText, selectedCategory === cat.name && styles.filterPillTextActive]}>
-                  {cat.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-        
-        <FlatList
-          data={filteredTransactions}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={styles.list}
-          refreshing={loading}
-          onRefresh={fetchData}
+      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={<Text style={{color: colors.textMuted, textAlign: 'center', marginTop: 20}}>No transactions found</Text>}
-        />
+          refreshing={loading}
+          onScrollEndDrag={fetchData}
+        >
+          {/* ── Header ── */}
+          <View style={styles.header}>
+            <TouchableOpacity style={styles.iconBtn}>
+              <Menu size={18} color="#FFFFFF" strokeWidth={1.8} />
+            </TouchableOpacity>
+            {profile ? (
+              <Image
+                source={{ uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || 'U')}&background=2C2C2E&color=fff&rounded=true&size=96` }}
+                style={styles.avatar}
+              />
+            ) : (
+              <View style={[styles.avatar, { backgroundColor: '#2C2C2E' }]} />
+            )}
+          </View>
 
-      </MotiView>
+          {/* ── Greeting ── */}
+          <View style={styles.greetingBlock}>
+            <Text style={styles.greetingLight}>Welcome</Text>
+            <View style={styles.greetingRow}>
+              <Text style={styles.greetingBold} numberOfLines={1}>
+                {firstName}!
+              </Text>
+              <TouchableOpacity style={styles.iconBtn}>
+                <Search size={18} color="#FFFFFF" strokeWidth={1.8} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* ── Balance Card ── */}
+          <LinearGradient
+            colors={['#1E3028', '#1A2820', '#161616']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.balanceCard}
+          >
+            <Text style={styles.balanceLabel}>Available Balance</Text>
+            {loading && transactions.length === 0 ? (
+              <ActivityIndicator
+                size="small"
+                color="#8E8E93"
+                style={{ alignSelf: 'flex-end', marginTop: 24 }}
+              />
+            ) : (
+              <Text style={styles.balanceAmount} numberOfLines={1} adjustsFontSizeToFit>
+                {formatCurrency(availableBalance, baseCurrency)}
+              </Text>
+            )}
+          </LinearGradient>
+
+          {/* ── Recents Summary ── */}
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Recent Income</Text>
+              <Text style={styles.summaryValue}>
+                {formatCurrency(totalIncome, baseCurrency)}
+              </Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Recent Expenses</Text>
+              <Text style={styles.summaryValue}>
+                {formatCurrency(totalExpense, baseCurrency)}
+              </Text>
+            </View>
+          </View>
+
+          {/* ── Quick Actions ── */}
+          <View style={styles.actionsRow}>
+            <TouchableOpacity style={styles.actionCard}>
+              <View style={styles.actionIconRing}>
+                <Minus size={14} color="#FFFFFF" strokeWidth={2} />
+              </View>
+              <Text style={styles.actionSub}>Add</Text>
+              <Text style={styles.actionTitle}>Expense</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionCard}>
+              <View style={styles.actionIconRing}>
+                <Plus size={14} color="#C1FFD7" strokeWidth={2} />
+              </View>
+              <Text style={styles.actionSub}>Add</Text>
+              <Text style={[styles.actionTitle, { color: '#C1FFD7' }]}>Income</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionCard} onPress={handleOCR}>
+              <View style={styles.actionIconRing}>
+                {ocrLoading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Camera size={14} color="#FFFFFF" strokeWidth={2} />
+                )}
+              </View>
+              <Text style={styles.actionSub}>Scan</Text>
+              <Text style={styles.actionTitle}>Receipt</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* ── Recent Transactions ── */}
+          <View style={styles.recentCard}>
+            <View style={styles.recentHeader}>
+              <Text style={styles.recentTitle}>Recent Transactions</Text>
+              <TouchableOpacity onPress={() => router.push('/transactions')}>
+                <Text style={styles.recentSeeAll}>See all</Text>
+              </TouchableOpacity>
+            </View>
+
+            {loading && transactions.length === 0 ? (
+              <ActivityIndicator size="small" color="#8E8E93" style={{ marginVertical: 20 }} />
+            ) : recentTransactions.length === 0 ? (
+              <Text style={styles.emptyChart}>No transactions yet.</Text>
+            ) : (
+              recentTransactions.map((txn, index) => {
+                const isExpense = txn.type === 'expense';
+                const date = new Date(txn.transaction_date);
+                const isValidDate = !isNaN(date.getTime());
+                let dateLabel = '';
+                if (isValidDate) {
+                  dateLabel = format(date, 'd MMM');
+                  if (isToday(date)) dateLabel = 'Today';
+                  else if (isYesterday(date)) dateLabel = 'Yesterday';
+                }
+                const catColor = txn.categories?.color || (isExpense ? '#FFC1E3' : '#C1FFD7');
+                const catName = txn.categories?.name || 'Other';
+                const label = txn.merchant?.trim() || catName;
+
+                return (
+                  <View key={txn.id}>
+                    {index > 0 && <View style={styles.txnDivider} />}
+                    <View style={styles.txnRow}>
+                      {/* Category icon */}
+                      <View style={[styles.txnIconBg, { backgroundColor: `${catColor}25` }]}>
+                        {getCategoryIcon(catName, catColor)}
+                      </View>
+                      {/* Details */}
+                      <View style={styles.txnDetails}>
+                        <Text style={styles.txnLabel} numberOfLines={1}>
+                          {label}
+                        </Text>
+                        <Text style={styles.txnSub}>{catName}</Text>
+                      </View>
+                      {/* Right side */}
+                      <View style={styles.txnRight}>
+                        <Text
+                          style={[
+                            styles.txnAmount,
+                            { color: isExpense ? '#FF6B6B' : '#C1FFD7' },
+                          ]}
+                        >
+                          {isExpense ? '-' : '+'}{formatCurrency(txn.amount, txn.currency || baseCurrency)}
+                        </Text>
+                        <Text style={styles.txnDate}>{dateLabel}</Text>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })
+            )}
+          </View>
+
+          {/* ── Spending Categories ── */}
+          <View style={[styles.recentHeader, { marginTop: spacing.md }]}>
+            <Text style={styles.recentTitle}>Spending by Category</Text>
+          </View>
+
+          {loading && categorySpends.length === 0 ? (
+            <ActivityIndicator
+              size="small"
+              color="#8E8E93"
+              style={{ alignSelf: 'center', marginVertical: 40 }}
+            />
+          ) : categorySpends.length === 0 ? (
+            <Text style={styles.emptyChart}>
+              No expenses recorded this month.
+            </Text>
+          ) : (
+            <View style={styles.otherCatsContainer}>
+              {categorySpends.map((cat) => (
+                <CategoryCard key={cat.name} cat={cat} baseCurrency={baseCurrency} />
+              ))}
+            </View>
+          )}
+        </ScrollView>
+      </SafeAreaView>
     </View>
   );
 }
 
-const getStyles = (colors: any) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.secondary },
-  topSection: { 
-    backgroundColor: colors.accent, 
-    borderBottomLeftRadius: borderRadii.xl,
-    borderBottomRightRadius: borderRadii.xl,
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#1C1C1E',
+  },
+  scrollContent: {
     paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xxl + 16,
+  },
+
+  // Header
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  iconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadii.sm,
+    backgroundColor: 'rgba(44,44,46,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+
+  // Greeting
+  greetingBlock: {
+    marginTop: 28,
+    marginBottom: spacing.lg,
+  },
+  greetingLight: {
+    fontSize: 26,
+    fontWeight: '300',
+    color: 'rgba(255,255,255,0.55)',
+    letterSpacing: -0.3,
+  },
+  greetingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  greetingBold: {
+    fontSize: 30,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: -0.8,
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+
+  // Balance Card
+  balanceCard: {
+    borderRadius: borderRadii.xl,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
     paddingBottom: spacing.xl,
+    marginBottom: spacing.lg,
+    overflow: 'hidden',
+    // Tinted inner border to simulate glass edge
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 24,
+    elevation: 14,
   },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.md },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  headerTitle: { ...typography.bodyLarge, fontWeight: '500' },
-  planSection: { marginTop: spacing.xl},
-  planTextRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  planPercent: { ...typography.heading1, letterSpacing: -1 },
-  planLabel: { ...typography.bodyMedium, marginBottom: spacing.sm },
-  
-  bottomSection: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.xl },
-  historyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg },
-  historyTitle: { ...typography.bodyLarge, color: colors.textDark },
-  list: { paddingBottom: 150 },
-  
-  txnRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg },
-  txnDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'transparent' }, 
-  txnContent: { flex: 1, marginLeft: 4 },
-  txnAmount: { ...typography.heading3, color: colors.textDark, marginBottom: 4 },
-  txnSubRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  typeDot: { width: 6, height: 6, borderRadius: 3 },
-  txnCat: { ...typography.bodyMedium, color: colors.textMuted },
-  txnRight: { alignItems: 'flex-end', justifyContent: 'space-between', height: 48 },
-  txnDate: { ...typography.bodyMedium, color: colors.textMuted },
-  txnIconBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: colors.cardDark, justifyContent: 'center', alignItems: 'center' },
-  filterPillsContainer: { marginBottom: spacing.md },
-  filterPillsScroll: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, gap: spacing.sm },
-  filterPill: { 
-    paddingHorizontal: spacing.lg, 
-    paddingVertical: spacing.sm, 
-    borderRadius: borderRadii.pill, 
-    backgroundColor: 'transparent', 
-    borderWidth: 1.5, 
-    borderColor: colors.cardDark,
+  balanceLabel: {
+    fontSize: 13,
+    color: '#8E8E93',
+    fontWeight: '500',
+    marginBottom: 28,
   },
-  filterPillActive: { 
-    backgroundColor: colors.accent, 
-    borderColor: colors.accent,
+  balanceAmount: {
+    fontSize: 34,
+    color: '#FFFFFF',
+    fontWeight: '600',
+    textAlign: 'right',
+    letterSpacing: -1,
   },
-  filterPillText: { 
-    color: colors.primary, 
-    fontSize: 15, 
-    fontWeight: '600' 
+
+  // Summary Card
+  summaryCard: {
+    backgroundColor: '#141414',
+    borderRadius: borderRadii.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.lg,
   },
-  filterPillTextActive: { 
-    color: colors.textLight 
-  }
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  summaryLabel: {
+    fontSize: 14,
+    color: '#8E8E93',
+    fontWeight: '500',
+  },
+  summaryValue: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+
+  // Action Buttons
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: spacing.lg,
+  },
+  actionCard: {
+    flex: 1,
+    backgroundColor: '#141414',
+    borderRadius: borderRadii.lg,
+    padding: spacing.md,
+    minHeight: 108,
+  },
+  actionIconRing: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.18)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionSub: {
+    fontSize: 10,
+    color: '#6E6E73',
+    fontWeight: '500',
+    marginTop: 'auto',
+    paddingTop: spacing.md,
+  },
+  actionTitle: {
+    fontSize: 13,
+    color: '#FFFFFF',
+    fontWeight: '600',
+    marginTop: 3,
+  },
+
+  // Recent Transactions
+  recentCard: {
+    backgroundColor: '#141414',
+    borderRadius: borderRadii.xl,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+  },
+  recentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  recentTitle: {
+    fontSize: 15,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  recentSeeAll: {
+    fontSize: 12,
+    color: '#8E8E93',
+    fontWeight: '500',
+  },
+  txnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    gap: 12,
+  },
+  txnDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  txnIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+  txnDetails: {
+    flex: 1,
+    gap: 2,
+  },
+  txnLabel: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '500',
+  },
+  txnSub: {
+    fontSize: 11,
+    color: '#6E6E73',
+    fontWeight: '400',
+  },
+  txnRight: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  txnAmount: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  txnDate: {
+    fontSize: 11,
+    color: '#6E6E73',
+    fontWeight: '400',
+  },
+
+  // Chart
+  chartCard: {
+    backgroundColor: '#141414',
+    borderRadius: borderRadii.xl,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  chartTitle: {
+    fontSize: 15,
+    color: '#FFFFFF',
+    fontWeight: '600',
+    marginBottom: spacing.lg,
+  },
+  barsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    height: 130,
+    marginBottom: spacing.xl,
+  },
+  barCol: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  barPercent: {
+    fontSize: 9,
+    color: '#8E8E93',
+    marginBottom: 6,
+    fontWeight: '500',
+  },
+  barTrack: {
+    width: 42,
+    height: 96,
+    backgroundColor: '#1C1C1E',
+    borderRadius: 12,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+  },
+  barFill: {
+    width: '100%',
+    borderRadius: 12,
+  },
+  // Legend: 2-column wrap grid
+  legendGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '45%',
+  },
+  legendIconBg: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  legendText: {
+    fontSize: 11,
+    color: '#CCCCCC',
+    fontWeight: '500',
+    flex: 1,
+  },
+  emptyChart: {
+    fontSize: 13,
+    color: '#6E6E73',
+    textAlign: 'center',
+    paddingVertical: spacing.xl,
+  },
+  otherCatsContainer: {
+    paddingBottom: spacing.xxl,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 12,
+  },
+  otherCatCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#141414',
+    borderRadius: borderRadii.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    width: '48%',
+  },
+  otherCatIconBg: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.sm,
+  },
+  otherCatInfo: {
+    justifyContent: 'center',
+  },
+  otherCatName: {
+    fontSize: 12,
+    color: '#8E8E93',
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  otherCatAmount: {
+    fontSize: 13,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
 });

@@ -35,7 +35,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
 }) => {
   const colors = useThemeColors();
   const styles = getStyles(colors);
-  
+
   const _fillColor = fillColor || colors.secondary;
   const _trackColor = trackColor || colors.cardLight;
   const boundedProgress = Math.min(Math.max(progress, 0), 1);
@@ -103,7 +103,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
               width: bubble.size,
               height: bubble.size,
               borderRadius: bubble.size / 2,
-              backgroundColor: colors.accent,
+              backgroundColor: colors.chartGreen,
               bottom: -10, // Start just below the visible area
             }}
           />

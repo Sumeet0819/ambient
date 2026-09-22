@@ -4,32 +4,44 @@ import { RootState } from '../store';
 export const darkColors = {
   primary: '#FFFFFF', // Main dashboard background
   secondary: '#000000', // History/Analytics background
-  accent: '#20D770', // Primary Neon Green
+  // accent: '#20D770', // Primary Neon Green
   accentSecondary: '#FF6B6B', // Coral Red for specific categories
   cardLight: '#F5F5F5',
   cardDark: '#1C1C1E',
   textLight: '#000000', // Text on light backgrounds
   textDark: '#FFFFFF', // Text on dark backgrounds
   textMuted: '#8E8E93',
+  chartPink: '#FFC1E3',
+  chartGreen: '#C1FFD7',
+  chartYellow: '#FFFAC1',
+  chartPurple: '#E1D5FF',
 };
 
 export const lightColors = {
   primary: '#000000', // Was white
   secondary: '#FFFFFF', // Was black
-  accent: '#20D770', 
+  // accent: '#20D770', 
   accentSecondary: '#FF6B6B',
   cardLight: '#1C1C1E', // inverted
   cardDark: '#F5F5F5', // inverted
-  textLight: '#FFFFFF', 
-  textDark: '#000000', 
+  textLight: '#FFFFFF',
+  textDark: '#000000',
   textMuted: '#6E6E73',
+  chartPink: '#FFC1E3',
+  chartGreen: '#C1FFD7',
+  chartYellow: '#FFFAC1',
+  chartPurple: '#E1D5FF',
 };
 
 // Fallback for files that still import colors directly (if any)
 export const colors = darkColors;
 
+import { useColorScheme } from 'react-native';
+
 export const useThemeColors = () => {
-  const isLightMode = useSelector((state: RootState) => state.settings.isLightMode);
+  const themeMode = useSelector((state: RootState) => state.settings.themeMode);
+  const systemScheme = useColorScheme();
+  const isLightMode = themeMode === 'system' ? systemScheme === 'light' : themeMode === 'light';
   return isLightMode ? lightColors : darkColors;
 };
 

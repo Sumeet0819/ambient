@@ -1,6 +1,6 @@
 import { Stack, useRouter, useSegments, usePathname } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator, useColorScheme } from 'react-native';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import { store, RootState, AppDispatch } from '../src/store';
 import { hydrateAuth } from '../src/store/auth.slice';
@@ -10,7 +10,9 @@ import { StatusBar } from 'expo-status-bar';
 
 function RootLayoutInner() {
   const token = useSelector((state: RootState) => state.auth.token);
-  const isLightMode = useSelector((state: RootState) => state.settings.isLightMode);
+  const themeMode = useSelector((state: RootState) => state.settings.themeMode);
+  const systemScheme = useColorScheme();
+  const isLightMode = themeMode === 'system' ? systemScheme === 'light' : themeMode === 'light';
   const dispatch = useDispatch<AppDispatch>();
   const [isReady, setIsReady] = useState(false);
   const segments = useSegments();

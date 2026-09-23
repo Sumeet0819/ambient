@@ -3,7 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import TextRecognition from '@react-native-ml-kit/text-recognition';
 import { useAlert } from '../contexts/AlertContext';
 
-export function useOCR() {
+export function useOCR(onSuccess?: (uri: string, text: string) => void) {
   const [ocrLoading, setOcrLoading] = useState(false);
   const { showAlert } = useAlert();
 
@@ -20,12 +20,15 @@ export function useOCR() {
         return;
       }
       
-      showAlert(
-        'Extracted Text',
-        extractedText.substring(0, 1000) + (extractedText.length > 1000 ? '...' : ''),
-        [{ text: 'OK' }]
-      );
-
+      if (onSuccess) {
+        onSuccess(uri, extractedText);
+      } else {
+        showAlert(
+          'Extracted Text',
+          extractedText.substring(0, 1000) + (extractedText.length > 1000 ? '...' : ''),
+          [{ text: 'OK' }]
+        );
+      }
     } catch (e: any) {
       setOcrLoading(false);
       showAlert('Error', e.message || 'Failed to extract text from image');

@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { authMiddleware, AuthRequest } from '../../shared/middleware/auth.middleware';
 import { getSupabaseClient } from '../database/supabase';
-import { parseReceiptImage } from '../ai/ai.service';
+import { parseReceiptImage, parseTransaction } from '../ai/ai.service';
 
 const router = Router();
 
@@ -123,19 +123,26 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
 
 /**
  * POST /api/v1/transactions/ocr
- * Process a receipt image
+ * Process a receipt image or text extracted from a receipt
  */
 router.post('/ocr', async (req: AuthRequest, res: Response) => {
-  const { imageBase64, mimeType } = req.body;
-  if (!imageBase64 || !mimeType) {
-    res.status(400).json({ error: 'imageBase64 and mimeType are required' });
+  const { imageBase64, mimeType, extractedText } = req.body;
+  
+  if (!imageBase64 && !extractedText) {
+    res.status(400).json({ error: 'Either imageBase64 or extractedText is required' });
     return;
   }
 
   try {
-    const parsed = await parseReceiptImage(imageBase64, mimeType);
+    let parsed;
+    if (extractedText) {
+      parsed = await parseTransaction(extractedText);
+    } else {
+      parsed = await parseReceiptImage(imageBase64, mimeType);
+    }
+
     if (!parsed || !parsed.isFinancial || parsed.transactions.length === 0) {
-      res.status(400).json({ error: 'Could not extract any transactions from the image.' });
+      res.status(400).json({ error: 'Could not extract any transactions from the input.' });
       return;
     }
 

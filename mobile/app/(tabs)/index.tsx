@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useMemo, useRef } from 'react';
+import { useEffect, useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   Image,
   ActivityIndicator,
   Animated,
+  Modal,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
@@ -16,11 +18,12 @@ import { Menu, Search, Minus, Plus, Check, Camera, Utensils, Car, ShoppingBag, F
 import { LinearGradient } from 'expo-linear-gradient';
 import { format, isToday, isYesterday } from 'date-fns';
 import { AppDispatch, RootState } from '../../src/store';
-import { fetchTransactions } from '../../src/store/transactions.slice';
+import { fetchTransactions, uploadReceiptOCR } from '../../src/store/transactions.slice';
 import { fetchProfile } from '../../src/store/profile.slice';
 import { useThemeColors, spacing, borderRadii } from '../../src/constants/theme';
 import { useOCR } from '../../src/hooks/useOCR';
 import { formatCurrency } from '../../src/lib/format';
+import { useAlert } from '../../src/contexts/AlertContext';
 
 const getCategoryIcon = (categoryName: string, color: string, size: number = 18) => {
   switch (categoryName.toLowerCase()) {
@@ -110,15 +113,37 @@ export default function HomeScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const dispatch = useDispatch<AppDispatch>();
+  const { showAlert } = useAlert();
+
+  const [ocrPreview, setOcrPreview] = useState<{ uri: string; text: string } | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const { items: transactions, loading } = useSelector(
     (state: RootState) => state.transactions
   );
   const profile = useSelector((state: RootState) => state.profile.data);
-  const { handleOCR, ocrLoading } = useOCR();
+  const { handleOCR, ocrLoading } = useOCR((uri, text) => {
+    setOcrPreview({ uri, text });
+  });
+
+  const handleAnalyzeAndAdd = async () => {
+    if (!ocrPreview) return;
+    setIsAnalyzing(true);
+    try {
+      await dispatch(uploadReceiptOCR({ extractedText: ocrPreview.text })).unwrap();
+      setOcrPreview(null);
+      dispatch(fetchTransactions({}));
+      showAlert('Success', 'Transaction analyzed and added successfully.');
+    } catch (error: any) {
+      console.error(error);
+      showAlert('Error', error.message || 'Failed to add transaction.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   const fetchData = useCallback(() => {
-    dispatch(fetchTransactions());
+    dispatch(fetchTransactions({}));
     if (!profile) {
       dispatch(fetchProfile());
     }
@@ -153,7 +178,7 @@ export default function HomeScreen() {
   // Aggregate spending by category for the chart
   const categorySpends = useMemo<CategorySpend[]>(() => {
     const map: Record<string, { total: number, color: string }> = {};
-    
+
     // Initialize with defaults
     DEFAULT_CATEGORIES.forEach(cat => {
       map[cat.name] = { total: 0, color: cat.color };
@@ -163,7 +188,7 @@ export default function HomeScreen() {
       if (t.type !== 'expense') continue;
       const name = t.categories?.name || 'Other';
       const color = t.categories?.color || map['Other']?.color || '#B0B0B0';
-      
+
       if (!map[name]) {
         map[name] = { total: 0, color };
       }
@@ -188,15 +213,16 @@ export default function HomeScreen() {
       <LinearGradient
         colors={['#C8F0D8', '#C4E8C4', '#252527', '#1C1C1E']}
         locations={[0, 0.08, 0.34, 1]}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
       />
 
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          refreshing={loading}
-          onScrollEndDrag={fetchData}
+          refreshControl={
+            <RefreshControl refreshing={loading} onRefresh={fetchData} tintColor="#FFFFFF" />
+          }
         >
           {/* ── Header ── */}
           <View style={styles.header}>
@@ -381,6 +407,50 @@ export default function HomeScreen() {
           )}
         </ScrollView>
       </SafeAreaView>
+
+      {/* OCR Preview Modal */}
+      <Modal
+        visible={!!ocrPreview}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setOcrPreview(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Receipt Preview</Text>
+              <TouchableOpacity onPress={() => setOcrPreview(null)}>
+                <Text style={styles.modalCloseText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+
+            {ocrPreview?.uri && (
+              <Image
+                source={{ uri: ocrPreview.uri }}
+                style={styles.previewImage}
+                resizeMode="contain"
+              />
+            )}
+
+            <ScrollView style={styles.previewTextContainer}>
+              <Text style={styles.previewTextTitle}>Extracted Data:</Text>
+              <Text style={styles.previewText}>{ocrPreview?.text}</Text>
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.analyzeBtn}
+              onPress={handleAnalyzeAndAdd}
+              disabled={isAnalyzing}
+            >
+              {isAnalyzing ? (
+                <ActivityIndicator color="#000" size="small" />
+              ) : (
+                <Text style={styles.analyzeBtnText}>Analyze & Add</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -393,6 +463,72 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xxl + 16,
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#1C1C1E',
+    borderTopLeftRadius: borderRadii.xl,
+    borderTopRightRadius: borderRadii.xl,
+    padding: spacing.lg,
+    height: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFF',
+  },
+  modalCloseText: {
+    fontSize: 16,
+    color: '#8E8E93',
+  },
+  previewImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: borderRadii.md,
+    backgroundColor: '#141414',
+    marginBottom: spacing.lg,
+  },
+  previewTextContainer: {
+    flex: 1,
+    backgroundColor: '#141414',
+    borderRadius: borderRadii.md,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  previewTextTitle: {
+    fontSize: 14,
+    color: '#8E8E93',
+    marginBottom: spacing.sm,
+    fontWeight: '600',
+  },
+  previewText: {
+    fontSize: 13,
+    color: '#D1D1D6',
+    lineHeight: 20,
+  },
+  analyzeBtn: {
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 16,
+    borderRadius: borderRadii.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  analyzeBtnText: {
+    color: '#000000',
+    fontSize: 16,
+    fontWeight: '600',
   },
 
   // Header

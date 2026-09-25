@@ -10,10 +10,12 @@ import { formatCurrency } from '../src/lib/format';
 import { useThemeColors, spacing, borderRadii } from '../src/constants/theme';
 
 export default function TransactionsScreen() {
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
   const router = useRouter();
   const { items: transactions, loading } = useSelector((state: RootState) => state.transactions);
-  const profile = useSelector((state: RootState) => state.profile.profile);
-  const baseCurrency = profile?.base_currency || 'USD';
+  const profile = useSelector((state: RootState) => state.profile.data);
+  const baseCurrency = profile?.base_currency || 'INR';
 
   // Sort by date descending
   const sortedTransactions = [...transactions].sort(
@@ -23,13 +25,13 @@ export default function TransactionsScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#161616', '#0A0A0A']}
-        style={StyleSheet.absoluteFillObject}
+        colors={(colors.mode === 'light' ? colors.backgroundGradient : ['#161616', '#0A0A0A']) as unknown as readonly [string, string, ...string[]]}
+        style={StyleSheet.absoluteFill}
       />
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
-            <ChevronLeft size={24} color="#FFFFFF" />
+            <ChevronLeft size={24} color={colors.mode === 'light' ? '#000000' : '#FFFFFF'} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>All Transactions</Text>
           <View style={styles.iconBtnPlaceholder} />
@@ -37,7 +39,7 @@ export default function TransactionsScreen() {
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {loading && transactions.length === 0 ? (
-            <ActivityIndicator size="large" color="#C1FFD7" style={{ marginTop: 40 }} />
+            <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
           ) : sortedTransactions.length === 0 ? (
             <Text style={styles.emptyText}>No transactions found.</Text>
           ) : (
@@ -52,7 +54,7 @@ export default function TransactionsScreen() {
                   if (isToday(date)) dateLabel = `Today, ${format(date, 'h:mm a')}`;
                   else if (isYesterday(date)) dateLabel = `Yesterday, ${format(date, 'h:mm a')}`;
                 }
-                const catColor = txn.categories?.color || (isExpense ? '#FFC1E3' : '#C1FFD7');
+                const catColor = txn.categories?.color || (isExpense ? '#FFC1E3' : colors.primary);
                 const catName = txn.categories?.name || 'Other';
                 const label = txn.merchant?.trim() || catName;
 
@@ -71,7 +73,7 @@ export default function TransactionsScreen() {
                         <Text
                           style={[
                             styles.txnAmount,
-                            { color: isExpense ? '#FF6B6B' : '#C1FFD7' },
+                            { color: isExpense ? (colors.mode === 'light' ? colors.text : '#FF6B6B') : colors.primary },
                           ]}
                         >
                           {isExpense ? '-' : '+'}
@@ -91,10 +93,10 @@ export default function TransactionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A0A',
+    backgroundColor: colors.mode === 'light' ? colors.background : '#0A0A0A',
   },
   header: {
     flexDirection: 'row',
@@ -107,11 +109,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: borderRadii.sm,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: colors.mode === 'light' ? colors.cardLight : 'rgba(255,255,255,0.05)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: colors.mode === 'light' ? colors.borderLight : 'rgba(255,255,255,0.1)',
   },
   iconBtnPlaceholder: {
     width: 44,
@@ -120,25 +122,25 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.mode === 'light' ? colors.text : '#FFFFFF',
   },
   scrollContent: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xxl + 40,
   },
   emptyText: {
-    color: '#8E8E93',
+    color: colors.textMuted,
     textAlign: 'center',
     marginTop: 40,
     fontSize: 15,
   },
   listCard: {
-    backgroundColor: '#141414',
+    backgroundColor: colors.mode === 'light' ? colors.cardDark : '#141414',
     borderRadius: borderRadii.xl,
     padding: spacing.lg,
     marginTop: spacing.md,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: colors.mode === 'light' ? colors.borderLight : 'rgba(255,255,255,0.05)',
   },
   txnRow: {
     flexDirection: 'row',
@@ -148,7 +150,7 @@ const styles = StyleSheet.create({
   },
   txnDivider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: colors.mode === 'light' ? colors.borderLight : 'rgba(255,255,255,0.05)',
   },
   txnDot: {
     width: 12,
@@ -162,12 +164,12 @@ const styles = StyleSheet.create({
   },
   txnLabel: {
     fontSize: 15,
-    color: '#FFFFFF',
+    color: colors.mode === 'light' ? colors.text : '#FFFFFF',
     fontWeight: '500',
   },
   txnSub: {
     fontSize: 12,
-    color: '#8E8E93',
+    color: colors.textMuted,
     fontWeight: '400',
   },
   txnRight: {
@@ -180,7 +182,7 @@ const styles = StyleSheet.create({
   },
   txnDate: {
     fontSize: 11,
-    color: '#8E8E93',
+    color: colors.textMuted,
     fontWeight: '400',
   },
 });

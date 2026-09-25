@@ -11,6 +11,8 @@ import { formatCurrency, getCurrencySymbol } from '../../src/lib/format';
 import { MotiView } from 'moti';
 import { Easing } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../src/store';
 
 export default function AnalyticsScreen() {
   const colors = useThemeColors();
@@ -62,7 +64,9 @@ export default function AnalyticsScreen() {
   
   const limit = summary?.monthlyLimit || 50000;
   const totalSpent = summary?.totalExpense || 0;
-  const baseCurrency = transactions.length > 0 ? (transactions[0].currency || 'INR') : 'INR';
+  
+  const profile = useSelector((state: RootState) => state.profile.data);
+  const baseCurrency = profile?.base_currency || 'INR';
   
   const formatAmountSplit = (amount: number) => {
      const formatted = formatCurrency(amount, baseCurrency);
@@ -91,12 +95,6 @@ export default function AnalyticsScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Ambient gradient background: green-ish top fading to dark */}
-      <LinearGradient
-        colors={['#C8F0D8', '#C4E8C4', '#252527', '#1C1C1E']}
-        locations={[0, 0.08, 0.34, 1]}
-        style={StyleSheet.absoluteFillObject}
-      />
       <SafeAreaView style={{flex: 1}} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
@@ -133,16 +131,16 @@ export default function AnalyticsScreen() {
               if (!day) return <View key={`empty-${i}`} style={styles.dayCellWrapper} />;
               
               let bg = 'transparent';
-              let color = 'rgba(255,255,255,0.55)';
+              let color = colors.mode === 'light' ? colors.textMuted : 'rgba(255,255,255,0.55)';
               
               if (isBlack(day)) {
-                 bg = '#C1FFD7';
-                 color = '#000000';
+                 bg = colors.primary;
+                 color = colors.textInverse;
               } else if (isGreen(day)) {
-                 bg = 'rgba(255,255,255,0.1)';
-                 color = '#FFFFFF';
+                 bg = colors.mode === 'light' ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.1)';
+                 color = colors.mode === 'light' ? colors.text : '#FFFFFF';
               } else if (isPattern(day)) {
-                 bg = 'rgba(255,255,255,0.02)';
+                 bg = colors.mode === 'light' ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.02)';
               }
 
               return (
@@ -192,7 +190,7 @@ export default function AnalyticsScreen() {
             <Text style={styles.progressTitle}>Financial</Text>
             <Text style={styles.progressSub}>of {formatCurrency(limit, baseCurrency)} spent <Text style={{textDecorationLine: 'underline'}}>Edit</Text></Text>
           </TouchableOpacity>
-          <ProgressBar progress={totalSpent/limit || 0} height={16} fillColor={'#C1FFD7'} trackColor={'rgba(255,255,255,0.1)'} />
+          <ProgressBar progress={totalSpent/limit || 0} height={16} fillColor={colors.primary} trackColor={'rgba(255,255,255,0.1)'} />
         </MotiView>
 
       </ScrollView>
@@ -205,27 +203,27 @@ export default function AnalyticsScreen() {
         style={styles.bottomCard}
       >
          <LinearGradient
-            colors={['#1E3028', '#1A2820', '#161616']}
+            colors={(colors.mode === 'light' ? ['#B7E4C7', '#D4EBE0', '#F2F2F7'] : ['#1E3028', '#1A2820', '#161616']) as unknown as readonly [string, string, ...string[]]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
           />
          <View style={styles.bottomCardHeader}>
             <View style={styles.bottomCardTitleRow}>
-               <CalendarIcon size={20} color={'rgba(255,255,255,0.55)'} />
+               <CalendarIcon size={20} color={colors.mode === 'light' ? colors.textMuted : 'rgba(255,255,255,0.55)'} />
                <View style={{marginLeft: 12}}>
                   <Text style={styles.bottomCardDate}>{selectedDate} {format(currentMonth, 'MMMM')}</Text>
                   <Text style={styles.bottomCardSub}>Daily Spent</Text>
                </View>
             </View>
             <View style={styles.bottomCardActions}>
-               <Upload size={20} color={'rgba(255,255,255,0.55)'} />
-               <ArrowUpRight size={20} color={'rgba(255,255,255,0.55)'} style={{marginLeft: 16}} />
+               <Upload size={20} color={colors.mode === 'light' ? colors.textMuted : 'rgba(255,255,255,0.55)'} />
+               <ArrowUpRight size={20} color={colors.mode === 'light' ? colors.textMuted : 'rgba(255,255,255,0.55)'} style={{marginLeft: 16}} />
             </View>
          </View>
          
          {loading ? (
-             <ActivityIndicator color={colors.accent} style={{marginTop: 20}}/>
+             <ActivityIndicator color={colors.chartGreen} style={{marginTop: 20}}/>
          ) : (
             <View style={styles.amountsRow}>
                 <View style={styles.amountItem}>
@@ -255,8 +253,8 @@ export default function AnalyticsScreen() {
               <TouchableOpacity onPress={() => setIsEditingLimit(false)} style={styles.modalBtn}>
                 <Text style={styles.modalBtnText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleSaveLimit} style={[styles.modalBtn, { backgroundColor: colors.accent }]}>
-                <Text style={[styles.modalBtnText, { color: colors.primary }]}>Save</Text>
+              <TouchableOpacity onPress={handleSaveLimit} style={[styles.modalBtn, { backgroundColor: colors.borderLight }]}>
+                <Text style={[styles.modalBtnText, { color: '#FFFFFF' }]}>Save</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -268,49 +266,49 @@ export default function AnalyticsScreen() {
 }
 
 const getStyles = (colors: any) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0A0A0A' },
+  container: { flex: 1, backgroundColor: colors.mode === 'light' ? colors.background : '#0A0A0A' },
   scrollContent: { paddingHorizontal: spacing.lg, paddingBottom: 220 }, // Space for bottom card
   
   header: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: spacing.md, marginBottom: spacing.xl },
-  monthPill: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: borderRadii.pill },
-  monthText: { ...typography.bodyMedium, fontWeight: '500', color: '#FFFFFF' },
+  monthPill: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, backgroundColor: colors.mode === 'light' ? colors.overlay : 'rgba(255,255,255,0.1)', borderRadius: borderRadii.pill },
+  monthText: { ...typography.bodyMedium, fontWeight: '500', color: colors.mode === 'light' ? colors.text : '#FFFFFF' },
   
   calendarContainer: { marginBottom: spacing.xl },
   weekDaysRow: { flexDirection: 'row', paddingHorizontal: spacing.sm, marginBottom: spacing.md },
-  weekDayText: { textAlign: 'center', ...typography.bodyMedium, color: 'rgba(255,255,255,0.55)' },
+  weekDayText: { textAlign: 'center', ...typography.bodyMedium, color: colors.mode === 'light' ? colors.textMuted : 'rgba(255,255,255,0.55)' },
   daysGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: spacing.sm },
   dayCellWrapper: { width: '14.28%', alignItems: 'center', marginBottom: spacing.sm },
   dayCell: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
   dayText: { ...typography.bodyMedium, fontWeight: '500' },
   
   dateDetailsRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg },
-  dateLarge: { ...typography.heading2, letterSpacing: -1, color: '#FFFFFF' },
-  percentBadge: { backgroundColor: '#C1FFD7', borderRadius: borderRadii.pill, paddingHorizontal: 8, paddingVertical: 4, marginLeft: spacing.md },
-  percentBadgeText: { color: '#000000', ...typography.label },
+  dateLarge: { ...typography.heading2, letterSpacing: -1, color: colors.mode === 'light' ? colors.text : '#FFFFFF' },
+  percentBadge: { backgroundColor: colors.chartGreen, borderRadius: borderRadii.pill, paddingHorizontal: 8, paddingVertical: 4, marginLeft: spacing.md },
+  percentBadgeText: { color: '#FFFFFF', ...typography.label },
   
   progressSection: { marginBottom: spacing.xl },
   progressRowHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 },
-  progressTitle: { ...typography.bodyLarge, color: '#FFFFFF' },
-  progressSub: { ...typography.label, color: 'rgba(255,255,255,0.55)', fontWeight: '400' },
+  progressTitle: { ...typography.bodyLarge, color: colors.mode === 'light' ? colors.text : '#FFFFFF' },
+  progressSub: { ...typography.label, color: colors.mode === 'light' ? colors.textMuted : 'rgba(255,255,255,0.55)', fontWeight: '400' },
   
-  bottomCard: { position: 'absolute', bottom: 0, left: 0, right: 0, borderTopLeftRadius: borderRadii.xl, borderTopRightRadius: borderRadii.xl, padding: spacing.lg, paddingBottom: 120, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', borderBottomWidth: 0 },
+  bottomCard: { position: 'absolute', bottom: 0, left: 0, right: 0, borderTopLeftRadius: borderRadii.xl, borderTopRightRadius: borderRadii.xl, padding: spacing.lg, paddingBottom: 120, overflow: 'hidden', borderWidth: 1, borderColor: colors.mode === 'light' ? colors.borderLight : 'rgba(255,255,255,0.07)', borderBottomWidth: 0 },
   bottomCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xl },
   bottomCardTitleRow: { flexDirection: 'row', alignItems: 'center' },
-  bottomCardDate: { color: '#FFFFFF', ...typography.bodyMedium, fontWeight: '600' },
-  bottomCardSub: { color: 'rgba(255,255,255,0.55)', ...typography.bodySmall },
+  bottomCardDate: { color: colors.mode === 'light' ? colors.text : '#FFFFFF', ...typography.bodyMedium, fontWeight: '600' },
+  bottomCardSub: { color: colors.mode === 'light' ? colors.textMuted : 'rgba(255,255,255,0.55)', ...typography.bodySmall },
   bottomCardActions: { flexDirection: 'row', alignItems: 'center' },
   
   amountsRow: { flexDirection: 'row', justifyContent: 'space-between' },
   amountItem: { alignItems: 'flex-start' },
-  amountText: { color: '#FFFFFF', ...typography.heading3 },
-  amountDecimal: { fontSize: 14, fontWeight: '400', color: 'rgba(255,255,255,0.55)' },
-  amountActiveIndicator: { width: 40, height: 4, backgroundColor: '#C1FFD7', borderRadius: 2, marginTop: 8 },
+  amountText: { color: colors.mode === 'light' ? colors.text : '#FFFFFF', ...typography.heading3 },
+  amountDecimal: { fontSize: 14, fontWeight: '400', color: colors.mode === 'light' ? colors.textMuted : 'rgba(255,255,255,0.55)' },
+  amountActiveIndicator: { width: 40, height: 4, backgroundColor: colors.chartGreen, borderRadius: 2, marginTop: 8 },
   
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { backgroundColor: '#141414', padding: spacing.xl, borderRadius: borderRadii.lg, width: '80%', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
-  modalTitle: { ...typography.heading3, marginBottom: spacing.md, color: '#FFFFFF' },
-  limitInput: { backgroundColor: '#0A0A0A', color: '#FFFFFF', padding: spacing.md, borderRadius: borderRadii.md, ...typography.bodyLarge, marginBottom: spacing.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  modalOverlay: { flex: 1, backgroundColor: colors.mode === 'light' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { backgroundColor: colors.mode === 'light' ? colors.cardDark : '#141414', padding: spacing.xl, borderRadius: borderRadii.lg, width: '80%', borderWidth: 1, borderColor: colors.mode === 'light' ? colors.borderLight : 'rgba(255,255,255,0.07)' },
+  modalTitle: { ...typography.heading3, marginBottom: spacing.md, color: colors.mode === 'light' ? colors.text : '#FFFFFF' },
+  limitInput: { backgroundColor: colors.mode === 'light' ? colors.surface : '#0A0A0A', color: colors.mode === 'light' ? colors.text : '#FFFFFF', padding: spacing.md, borderRadius: borderRadii.md, ...typography.bodyLarge, marginBottom: spacing.lg, borderWidth: 1, borderColor: colors.mode === 'light' ? colors.border : 'rgba(255,255,255,0.1)' },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.md },
   modalBtn: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: borderRadii.md },
-  modalBtnText: { ...typography.bodyMedium, color: '#FFFFFF', fontWeight: '600' }
+  modalBtnText: { ...typography.bodyMedium, color: colors.mode === 'light' ? colors.text : '#FFFFFF', fontWeight: '600' }
 });

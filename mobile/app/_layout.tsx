@@ -48,9 +48,6 @@ function RootLayoutInner() {
   }
 
   let statusBarStyle: 'light' | 'dark' | 'auto' | 'inverted' = isLightMode ? 'dark' : 'light';
-  if (pathname === '/analytics') {
-    statusBarStyle = isLightMode ? 'light' : 'dark';
-  }
 
   return (
     <>

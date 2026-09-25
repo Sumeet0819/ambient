@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 
-export function formatCurrency(amount: number, currencyCode: string = 'USD') {
+export function formatCurrency(amount: number, currencyCode: string = 'INR') {
   try {
     return new Intl.NumberFormat(undefined, {
       style: 'currency',
@@ -15,7 +15,7 @@ export function formatCurrency(amount: number, currencyCode: string = 'USD') {
   }
 }
 
-export function getCurrencySymbol(currencyCode: string = 'USD') {
+export function getCurrencySymbol(currencyCode: string = 'INR') {
   try {
     const parts = new Intl.NumberFormat(undefined, {
       style: 'currency',

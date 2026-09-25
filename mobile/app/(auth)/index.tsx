@@ -47,7 +47,7 @@ export default function LoginScreen() {
     <SafeAreaView style={styles.container}>
       <LinearGradient
         colors={['#161616', '#0A0A0A']}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
       />
       <MotiView
         from={{ opacity: 0, translateY: 20 }}
@@ -95,7 +95,7 @@ export default function LoginScreen() {
         </View>
 
         <TouchableOpacity onPress={() => router.push('/(auth)/register')} style={styles.linkButton}>
-          <Text style={styles.linkText}>Don't have an account? <Text style={{ color: colors.accent, fontWeight: 'bold' }}>Register</Text></Text>
+          <Text style={styles.linkText}>Don't have an account? <Text style={{ color: colors.chartGreen, fontWeight: 'bold' }}>Register</Text></Text>
         </TouchableOpacity>
 
       </MotiView>
@@ -104,36 +104,36 @@ export default function LoginScreen() {
 }
 
 const getStyles = (colors: any) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0A0A0A' },
+  container: { flex: 1, backgroundColor: colors.mode === 'light' ? colors.background : '#0A0A0A' },
   content: { flex: 1, padding: spacing.xl, justifyContent: 'center' },
   
   header: { marginBottom: spacing.xxl },
-  title: { ...typography.heading1, color: '#FFFFFF', marginBottom: spacing.sm, fontWeight: '700', letterSpacing: -1 },
-  subtitle: { ...typography.bodyLarge, color: 'rgba(255,255,255,0.55)' },
+  title: { ...typography.heading1, color: colors.mode === 'light' ? colors.text : '#FFFFFF', marginBottom: spacing.sm, fontWeight: '700', letterSpacing: -1 },
+  subtitle: { ...typography.bodyLarge, color: colors.mode === 'light' ? colors.textMuted : 'rgba(255,255,255,0.55)' },
   
   form: { 
     marginBottom: spacing.xl,
-    backgroundColor: '#141414',
+    backgroundColor: colors.mode === 'light' ? colors.cardDark : '#141414',
     padding: spacing.xl,
     borderRadius: borderRadii.xl,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
+    borderColor: colors.mode === 'light' ? colors.borderLight : 'rgba(255,255,255,0.07)',
   },
   input: {
-    backgroundColor: '#0A0A0A',
+    backgroundColor: colors.mode === 'light' ? colors.surface : '#0A0A0A',
     borderRadius: borderRadii.md,
     padding: spacing.lg,
     ...typography.bodyLarge,
-    color: '#FFFFFF',
+    color: colors.mode === 'light' ? colors.text : '#FFFFFF',
     marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: colors.mode === 'light' ? colors.border : 'rgba(255,255,255,0.1)',
   },
   
   error: { color: colors.accentSecondary, marginBottom: spacing.md, textAlign: 'center', ...typography.bodyMedium },
   
   button: {
-    backgroundColor: '#C1FFD7',
+    backgroundColor: colors.primary,
     padding: spacing.lg,
     borderRadius: borderRadii.pill,
     flexDirection: 'row',
@@ -141,8 +141,8 @@ const getStyles = (colors: any) => StyleSheet.create({
     justifyContent: 'center',
     marginTop: spacing.md,
   },
-  buttonText: { color: '#000000', ...typography.bodyLarge, fontWeight: '700' },
+  buttonText: { color: colors.mode === 'light' ? '#FFFFFF' : '#000000', ...typography.bodyLarge, fontWeight: '700' },
   
   linkButton: { marginTop: spacing.lg, alignItems: 'center' },
-  linkText: { color: 'rgba(255,255,255,0.55)', ...typography.bodyMedium },
+  linkText: { color: colors.mode === 'light' ? colors.textMuted : 'rgba(255,255,255,0.55)', ...typography.bodyMedium },
 });

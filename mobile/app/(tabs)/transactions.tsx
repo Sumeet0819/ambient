@@ -35,9 +35,11 @@ const getCategoryIcon = (categoryName: string, color: string, size: number = 18)
 type TimeFilter = 'Day' | 'Month' | 'Year';
 
 export default function TransactionsScreen() {
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
   const { items: transactions, loading } = useSelector((state: RootState) => state.transactions);
   const profile = useSelector((state: RootState) => state.profile.data);
-  const baseCurrency = profile?.base_currency || 'USD';
+  const baseCurrency = profile?.base_currency || 'INR';
 
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('Month');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
@@ -76,10 +78,6 @@ export default function TransactionsScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#161616', '#0A0A0A']}
-        style={StyleSheet.absoluteFill}
-      />
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>All Transactions</Text>
@@ -95,7 +93,7 @@ export default function TransactionsScreen() {
           >
             {availableCategories.map(cat => {
               const isActive = categoryFilter === cat;
-              const iconColor = isActive ? '#FFFFFF' : '#8E8E93';
+              const iconColor = isActive ? '#FFFFFF' : colors.textMuted;
               return (
                 <TouchableOpacity
                   key={cat}
@@ -118,7 +116,7 @@ export default function TransactionsScreen() {
 
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {loading && transactions.length === 0 ? (
-            <ActivityIndicator size="large" color="#C1FFD7" style={{ marginTop: 40 }} />
+            <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
           ) : filteredTransactions.length === 0 ? (
             <Text style={styles.emptyText}>No transactions found for these filters.</Text>
           ) : (
@@ -131,7 +129,7 @@ export default function TransactionsScreen() {
                 if (isToday(date)) dateLabel = `Today, ${format(date, 'h:mm a')}`;
                 else if (isYesterday(date)) dateLabel = `Yesterday, ${format(date, 'h:mm a')}`;
 
-                const catColor = txn.categories?.color || (isExpense ? '#FFC1E3' : '#C1FFD7');
+                const catColor = txn.categories?.color || (isExpense ? '#FFC1E3' : colors.primary);
                 const catName = txn.categories?.name || 'Other';
                 const label = txn.merchant?.trim() || catName;
 
@@ -151,7 +149,7 @@ export default function TransactionsScreen() {
                         <Text
                           style={[
                             styles.txnAmount,
-                            { color: isExpense ? '#FFFFFF' : '#C1FFD7' },
+                            { color: isExpense ? (colors.mode === 'light' ? colors.text : '#FFFFFF') : colors.primary },
                           ]}
                         >
                           {isExpense ? '-' : '+'}
@@ -196,7 +194,7 @@ export default function TransactionsScreen() {
             style={styles.fabButton}
             onPress={() => setIsTimeMenuOpen(!isTimeMenuOpen)}
           >
-            <Filter size={24} color="#000000" />
+            <Filter size={24} color={colors.mode === 'light' ? '#FFFFFF' : '#000000'} />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -204,10 +202,10 @@ export default function TransactionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A0A',
+    backgroundColor: colors.mode === 'light' ? colors.background : '#0A0A0A',
   },
   header: {
     alignItems: 'center',
@@ -218,7 +216,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.mode === 'light' ? colors.text : '#FFFFFF',
   },
   filtersContainer: {
     paddingBottom: spacing.sm,
@@ -235,17 +233,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: borderRadii.xl,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: colors.mode === 'light' ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: colors.mode === 'light' ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)',
   },
   categoryPillActive: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderColor: '#FFFFFF',
+    backgroundColor: colors.mode === 'light' ? colors.chartGreen : 'rgba(255,255,255,0.15)',
+    borderColor: colors.mode === 'light' ? colors.chartGreen : '#FFFFFF',
   },
   categoryPillText: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: colors.textMuted,
     fontWeight: '500',
   },
   categoryPillTextActive: {
@@ -256,7 +254,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl + 80,
   },
   emptyText: {
-    color: '#8E8E93',
+    color: colors.textMuted,
     textAlign: 'center',
     marginTop: 40,
     fontSize: 15,
@@ -265,12 +263,12 @@ const styles = StyleSheet.create({
     // legacy, unused
   },
   txnCard: {
-    backgroundColor: '#141414',
+    backgroundColor: colors.mode === 'light' ? colors.cardDark : '#141414',
     borderRadius: borderRadii.lg,
     padding: spacing.md,
     marginBottom: spacing.sm,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: colors.mode === 'light' ? colors.borderLight : 'rgba(255,255,255,0.05)',
   },
   txnRow: {
     flexDirection: 'row',
@@ -285,12 +283,12 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   fabMenu: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: colors.mode === 'light' ? colors.surface : '#1C1C1E',
     borderRadius: borderRadii.lg,
     padding: spacing.sm,
     marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: colors.mode === 'light' ? colors.border : 'rgba(255, 255, 255, 0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -303,21 +301,21 @@ const styles = StyleSheet.create({
     borderRadius: borderRadii.sm,
   },
   fabMenuItemActive: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: colors.mode === 'light' ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.1)',
   },
   fabMenuText: {
     fontSize: 15,
-    color: '#8E8E93',
+    color: colors.textMuted,
     fontWeight: '600',
   },
   fabMenuTextActive: {
-    color: '#FFFFFF',
+    color: colors.mode === 'light' ? colors.text : '#FFFFFF',
   },
   fabButton: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#FFFFFF', // White instead of neon
+    backgroundColor: colors.mode === 'light' ? colors.primary : '#FFFFFF', // White instead of neon
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -339,12 +337,12 @@ const styles = StyleSheet.create({
   },
   txnLabel: {
     fontSize: 16,
-    color: '#FFFFFF',
+    color: colors.mode === 'light' ? colors.text : '#FFFFFF',
     fontWeight: '600',
   },
   txnSub: {
     fontSize: 13,
-    color: '#8E8E93',
+    color: colors.textMuted,
     fontWeight: '400',
   },
   txnRight: {
@@ -357,7 +355,7 @@ const styles = StyleSheet.create({
   },
   txnDate: {
     fontSize: 12,
-    color: '#8E8E93',
+    color: colors.textMuted,
     fontWeight: '400',
   },
 });

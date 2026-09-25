@@ -2,35 +2,71 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 
 export const darkColors = {
+  mode: 'dark',
   primary: '#FFFFFF', // Main dashboard background
   secondary: '#000000', // History/Analytics background
-  // accent: '#20D770', // Primary Neon Green
   accentSecondary: '#FF6B6B', // Coral Red for specific categories
   cardLight: '#F5F5F5',
-  cardDark: '#1C1C1E',
-  textLight: '#000000', // Text on light backgrounds
-  textDark: '#FFFFFF', // Text on dark backgrounds
+  cardDark: '#1C1C1E', // Used in home container, modal content, fabMenu
+  
+  background: '#050505',
+  backgroundGradient: ['#00B67A', '#004D36', '#0A0A0A', '#000000'],
+  surfaceGradient: ['#00B67A', '#004D36', '#161616'],
+  surface: '#141414',
+  
+  textLight: '#000000',
+  textDark: '#FFFFFF',
+  text: '#FFFFFF',
   textMuted: '#8E8E93',
+  textInverse: '#000000',
+  
+  icon: '#FFFFFF',
+  iconMuted: 'rgba(255,255,255,0.55)',
+  
+  border: 'rgba(255,255,255,0.05)',
+  borderLight: 'rgba(255,255,255,0.1)',
+  
+  overlay: 'rgba(255,255,255,0.1)',
+  
   chartPink: '#FFC1E3',
-  chartGreen: '#C1FFD7',
+  chartGreen: '#FFFFFF',
+  chartRed: '#FFC1E3', // Using pink for red in dark mode
   chartYellow: '#FFFAC1',
   chartPurple: '#E1D5FF',
 };
 
 export const lightColors = {
-  primary: '#000000', // Was white
-  secondary: '#FFFFFF', // Was black
-  // accent: '#20D770', 
-  accentSecondary: '#FF6B6B',
-  cardLight: '#1C1C1E', // inverted
-  cardDark: '#F5F5F5', // inverted
+  mode: 'light',
+  primary: '#000000',
+  secondary: '#F2F2F7',
+  accentSecondary: '#FF3B30',
+  cardLight: '#1C1C1E',
+  cardDark: '#F2F2F7',
+  
+  background: '#F2F2F7',
+  backgroundGradient: ['#00B67A', '#52B788', '#F2F2F7', '#F2F2F7'],
+  surfaceGradient: ['#00B67A', '#52B788', '#FFFFFF'],
+  surface: '#FFFFFF',
+  
   textLight: '#FFFFFF',
   textDark: '#000000',
+  text: '#000000',
   textMuted: '#6E6E73',
-  chartPink: '#FFC1E3',
-  chartGreen: '#C1FFD7',
-  chartYellow: '#FFFAC1',
-  chartPurple: '#E1D5FF',
+  textInverse: '#FFFFFF',
+  
+  icon: '#000000',
+  iconMuted: 'rgba(0,0,0,0.5)',
+  
+  border: 'rgba(0,0,0,0.05)',
+  borderLight: 'rgba(0,0,0,0.1)',
+  
+  overlay: 'rgba(0,0,0,0.05)',
+  
+  chartPink: '#FF2D55',
+  chartGreen: '#000000',
+  chartRed: '#FF3B30',
+  chartYellow: '#FFCC00',
+  chartPurple: '#AF52DE',
 };
 
 // Fallback for files that still import colors directly (if any)

@@ -10,6 +10,9 @@ import {
   Animated,
   Modal,
   RefreshControl,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
@@ -18,9 +21,9 @@ import { Menu, Search, Minus, Plus, Check, Camera, Utensils, Car, ShoppingBag, F
 import { LinearGradient } from 'expo-linear-gradient';
 import { format, isToday, isYesterday } from 'date-fns';
 import { AppDispatch, RootState } from '../../src/store';
-import { fetchTransactions, uploadReceiptOCR } from '../../src/store/transactions.slice';
+import { fetchTransactions, uploadReceiptOCR, createTransaction } from '../../src/store/transactions.slice';
 import { fetchProfile } from '../../src/store/profile.slice';
-import { useThemeColors, spacing, borderRadii } from '../../src/constants/theme';
+import { useThemeColors, spacing, borderRadii, colors } from '../../src/constants/theme';
 import { useOCR } from '../../src/hooks/useOCR';
 import { formatCurrency } from '../../src/lib/format';
 import { useAlert } from '../../src/contexts/AlertContext';
@@ -68,6 +71,10 @@ interface CategorySpend {
 
 const CategoryCard = ({ cat, baseCurrency }: { cat: CategorySpend; baseCurrency: string }) => {
   const fillAnim = useRef(new Animated.Value(0)).current;
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
+
+
 
   useEffect(() => {
     Animated.timing(fillAnim, {
@@ -114,9 +121,16 @@ export default function HomeScreen() {
   const colors = useThemeColors();
   const dispatch = useDispatch<AppDispatch>();
   const { showAlert } = useAlert();
+  const styles = getStyles(colors);
 
   const [ocrPreview, setOcrPreview] = useState<{ uri: string; text: string } | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const [transactionModalType, setTransactionModalType] = useState<'expense' | 'income' | null>(null);
+  const [formAmount, setFormAmount] = useState('');
+  const [formMerchant, setFormMerchant] = useState('');
+  const [formNotes, setFormNotes] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { items: transactions, loading } = useSelector(
     (state: RootState) => state.transactions
@@ -134,11 +148,42 @@ export default function HomeScreen() {
       setOcrPreview(null);
       dispatch(fetchTransactions({}));
       showAlert('Success', 'Transaction analyzed and added successfully.');
-    } catch (error: any) {
+    } catch (error: any) {  
       console.error(error);
       showAlert('Error', error.message || 'Failed to add transaction.');
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const handleAddTransaction = async () => {
+    if (!formAmount || !formMerchant) {
+      showAlert('Error', 'Please fill in amount and merchant');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await dispatch(createTransaction({
+        type: transactionModalType!,
+        amount: parseFloat(formAmount),
+        currency: baseCurrency,
+        merchant: formMerchant,
+        notes: formNotes,
+        payment_method: 'cash',
+        transaction_date: new Date().toISOString()
+      })).unwrap();
+      
+      showAlert('Success', `${transactionModalType === 'income' ? 'Income' : 'Expense'} added successfully.`);
+      setTransactionModalType(null);
+      setFormAmount('');
+      setFormMerchant('');
+      setFormNotes('');
+      dispatch(fetchTransactions({}));
+    } catch (error: any) {
+      console.error(error);
+      showAlert('Error', error.message || 'Failed to add transaction.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -157,14 +202,13 @@ export default function HomeScreen() {
   const { totalIncome, totalExpense, baseCurrency } = useMemo(() => {
     let income = 0;
     let expense = 0;
-    const currency =
-      transactions.length > 0 ? transactions[0].currency || 'INR' : 'INR';
+    const currency = profile?.base_currency || 'INR';
     for (const t of transactions) {
       if (t.type === 'income') income += t.amount;
       else expense += t.amount;
     }
     return { totalIncome: income, totalExpense: expense, baseCurrency: currency };
-  }, [transactions]);
+  }, [transactions, profile?.base_currency]);
 
   const availableBalance = totalIncome - totalExpense;
 
@@ -209,10 +253,12 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Ambient gradient background: green-ish top fading to dark */}
+      {/* Ambient gradient background */}
       <LinearGradient
-        colors={['#C8F0D8', '#C4E8C4', '#252527', '#1C1C1E']}
-        locations={[0, 0.08, 0.34, 1]}
+        colors={colors.backgroundGradient as any}
+        start={{ x: 0.1, y: 0 }}
+        end={{ x: 0.9, y: 1 }}
+        locations={[0, 0.25, 0.6, 1]}
         style={StyleSheet.absoluteFill}
       />
 
@@ -230,12 +276,16 @@ export default function HomeScreen() {
               <Menu size={18} color="#FFFFFF" strokeWidth={1.8} />
             </TouchableOpacity>
             {profile ? (
-              <Image
-                source={{ uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || 'U')}&background=2C2C2E&color=fff&rounded=true&size=96` }}
-                style={styles.avatar}
-              />
+              <TouchableOpacity onPress={() => router.push('/profile')}>
+                <Image
+                  source={{ uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || 'U')}&background=2C2C2E&color=fff&rounded=true&size=96` }}
+                  style={styles.avatar}
+                />
+              </TouchableOpacity>
             ) : (
-              <View style={[styles.avatar, { backgroundColor: '#2C2C2E' }]} />
+              <TouchableOpacity onPress={() => router.push('/profile')}>
+                <View style={[styles.avatar, { backgroundColor: colors.mode === 'light' ? colors.cardLight : '#2C2C2E' }]} />
+              </TouchableOpacity>
             )}
           </View>
 
@@ -253,12 +303,7 @@ export default function HomeScreen() {
           </View>
 
           {/* ── Balance Card ── */}
-          <LinearGradient
-            colors={['#1E3028', '#1A2820', '#161616']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.balanceCard}
-          >
+          <View style={styles.balanceCard}>
             <Text style={styles.balanceLabel}>Available Balance</Text>
             {loading && transactions.length === 0 ? (
               <ActivityIndicator
@@ -271,7 +316,7 @@ export default function HomeScreen() {
                 {formatCurrency(availableBalance, baseCurrency)}
               </Text>
             )}
-          </LinearGradient>
+          </View>
 
           {/* ── Recents Summary ── */}
           <View style={styles.summaryCard}>
@@ -292,28 +337,28 @@ export default function HomeScreen() {
 
           {/* ── Quick Actions ── */}
           <View style={styles.actionsRow}>
-            <TouchableOpacity style={styles.actionCard}>
+            <TouchableOpacity style={styles.actionCard} onPress={() => setTransactionModalType('expense')}>
               <View style={styles.actionIconRing}>
-                <Minus size={14} color="#FFFFFF" strokeWidth={2} />
+                <Minus size={14} color={colors.primary} strokeWidth={2} />
               </View>
               <Text style={styles.actionSub}>Add</Text>
               <Text style={styles.actionTitle}>Expense</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionCard}>
+            <TouchableOpacity style={styles.actionCard} onPress={() => setTransactionModalType('income')}>
               <View style={styles.actionIconRing}>
-                <Plus size={14} color="#C1FFD7" strokeWidth={2} />
+                <Plus size={14} color={colors.primary} strokeWidth={2} />
               </View>
               <Text style={styles.actionSub}>Add</Text>
-              <Text style={[styles.actionTitle, { color: '#C1FFD7' }]}>Income</Text>
+              <Text style={[styles.actionTitle, { color: colors.primary }]}>Income</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.actionCard} onPress={handleOCR}>
               <View style={styles.actionIconRing}>
                 {ocrLoading ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <ActivityIndicator size="small" color={colors.primary} />
                 ) : (
-                  <Camera size={14} color="#FFFFFF" strokeWidth={2} />
+                  <Camera size={14} color={colors.primary} strokeWidth={2} />
                 )}
               </View>
               <Text style={styles.actionSub}>Scan</Text>
@@ -345,7 +390,7 @@ export default function HomeScreen() {
                   if (isToday(date)) dateLabel = 'Today';
                   else if (isYesterday(date)) dateLabel = 'Yesterday';
                 }
-                const catColor = txn.categories?.color || (isExpense ? '#FFC1E3' : '#C1FFD7');
+                const catColor = txn.categories?.color || (isExpense ? '#FFC1E3' : colors.primary);
                 const catName = txn.categories?.name || 'Other';
                 const label = txn.merchant?.trim() || catName;
 
@@ -369,7 +414,7 @@ export default function HomeScreen() {
                         <Text
                           style={[
                             styles.txnAmount,
-                            { color: isExpense ? '#FF6B6B' : '#C1FFD7' },
+                            { color: isExpense ? (colors.mode === 'light' ? colors.text : '#FF6B6B') : colors.primary },
                           ]}
                         >
                           {isExpense ? '-' : '+'}{formatCurrency(txn.amount, txn.currency || baseCurrency)}
@@ -451,14 +496,85 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Manual Transaction Modal */}
+      <Modal
+        visible={!!transactionModalType}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setTransactionModalType(null)}
+      >
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
+          <View style={[styles.modalContent, { height: '60%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add {transactionModalType === 'income' ? 'Income' : 'Expense'}</Text>
+              <TouchableOpacity onPress={() => setTransactionModalType(null)}>
+                <Text style={styles.modalCloseText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Amount</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="0.00"
+                  placeholderTextColor="#6E6E73"
+                  keyboardType="numeric"
+                  value={formAmount}
+                  onChangeText={setFormAmount}
+                />
+              </View>
+              
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Merchant / Title</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="e.g. Starbucks"
+                  placeholderTextColor="#6E6E73"
+                  value={formMerchant}
+                  onChangeText={setFormMerchant}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Notes (Optional)</Text>
+                <TextInput
+                  style={[styles.textInput, { height: 80, textAlignVertical: 'top' }]}
+                  placeholder="Additional details..."
+                  placeholderTextColor="#6E6E73"
+                  multiline
+                  value={formNotes}
+                  onChangeText={setFormNotes}
+                />
+              </View>
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.analyzeBtn}
+              onPress={handleAddTransaction}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator color="#000" size="small" />
+              ) : (
+                <Text style={styles.analyzeBtnText}>Save</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: colors.mode === 'light' ? colors.cardDark : '#1C1C1E',
   },
   scrollContent: {
     paddingHorizontal: spacing.lg,
@@ -468,11 +584,11 @@ const styles = StyleSheet.create({
   // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: colors.mode === 'light' ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: colors.mode === 'light' ? colors.cardDark : '#1C1C1E',
     borderTopLeftRadius: borderRadii.xl,
     borderTopRightRadius: borderRadii.xl,
     padding: spacing.lg,
@@ -487,48 +603,69 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFF',
+    color: colors.mode === 'light' ? colors.text : '#FFF',
   },
   modalCloseText: {
     fontSize: 16,
-    color: '#8E8E93',
+    color: colors.mode === 'light' ? colors.textMuted : '#8E8E93',
   },
   previewImage: {
     width: '100%',
     height: 200,
     borderRadius: borderRadii.md,
-    backgroundColor: '#141414',
+    backgroundColor: colors.mode === 'light' ? colors.surface : '#141414',
     marginBottom: spacing.lg,
   },
   previewTextContainer: {
     flex: 1,
-    backgroundColor: '#141414',
+    backgroundColor: colors.mode === 'light' ? colors.surface : '#141414',
     borderRadius: borderRadii.md,
     padding: spacing.md,
     marginBottom: spacing.lg,
   },
   previewTextTitle: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: colors.mode === 'light' ? colors.textMuted : '#8E8E93',
     marginBottom: spacing.sm,
     fontWeight: '600',
   },
   previewText: {
     fontSize: 13,
-    color: '#D1D1D6',
+    color: colors.mode === 'light' ? colors.textMuted : '#D1D1D6',
     lineHeight: 20,
   },
   analyzeBtn: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.mode === 'light' ? colors.text : '#FFFFFF',
     paddingVertical: 16,
     borderRadius: borderRadii.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   analyzeBtnText: {
-    color: '#000000',
+    color: colors.mode === 'light' ? colors.textInverse : '#000000',
     fontSize: 16,
     fontWeight: '600',
+  },
+  
+  // Form Inputs
+  inputGroup: {
+    marginBottom: spacing.lg,
+  },
+  inputLabel: {
+    fontSize: 14,
+    color: colors.mode === 'light' ? colors.textMuted : '#8E8E93',
+    marginBottom: spacing.sm,
+    fontWeight: '500',
+  },
+  textInput: {
+    backgroundColor: colors.mode === 'light' ? colors.surface : '#141414',
+    borderRadius: borderRadii.md,
+    color: colors.mode === 'light' ? colors.text : '#FFFFFF',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: colors.mode === 'light' ? colors.border : 'rgba(255,255,255,0.05)',
   },
 
   // Header
@@ -542,7 +679,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: borderRadii.sm,
-    backgroundColor: 'rgba(44,44,46,0.85)',
+    backgroundColor: colors.mode === 'light' ? colors.overlay : 'rgba(44,44,46,0.85)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -560,7 +697,7 @@ const styles = StyleSheet.create({
   greetingLight: {
     fontSize: 26,
     fontWeight: '300',
-    color: 'rgba(255,255,255,0.55)',
+    color: colors.mode === 'light' ? colors.iconMuted : 'rgba(255,255,255,0.55)',
     letterSpacing: -0.3,
   },
   greetingRow: {
@@ -572,7 +709,7 @@ const styles = StyleSheet.create({
   greetingBold: {
     fontSize: 30,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.mode === 'light' ? colors.text : '#FFFFFF',
     letterSpacing: -0.8,
     flex: 1,
     marginRight: spacing.sm,
@@ -580,30 +717,29 @@ const styles = StyleSheet.create({
 
   // Balance Card
   balanceCard: {
+    backgroundColor: colors.mode === 'light' ? '#FFFFFF' : '#1C1C1E',
     borderRadius: borderRadii.xl,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xl,
     paddingBottom: spacing.xl,
     marginBottom: spacing.lg,
     overflow: 'hidden',
-    // Tinted inner border to simulate glass edge
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.4,
-    shadowRadius: 24,
-    elevation: 14,
+    // Soft shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: colors.mode === 'light' ? 0.05 : 0.2,
+    shadowRadius: 10,
+    elevation: 3,
   },
   balanceLabel: {
     fontSize: 13,
-    color: '#8E8E93',
+    color: colors.mode === 'light' ? colors.textMuted : '#8E8E93',
     fontWeight: '500',
     marginBottom: 28,
   },
   balanceAmount: {
     fontSize: 34,
-    color: '#FFFFFF',
+    color: colors.mode === 'light' ? colors.text : '#FFFFFF',
     fontWeight: '600',
     textAlign: 'right',
     letterSpacing: -1,
@@ -611,7 +747,7 @@ const styles = StyleSheet.create({
 
   // Summary Card
   summaryCard: {
-    backgroundColor: '#141414',
+    backgroundColor: colors.mode === 'light' ? colors.surface : '#141414',
     borderRadius: borderRadii.lg,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
@@ -625,17 +761,17 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: colors.mode === 'light' ? colors.textMuted : '#8E8E93',
     fontWeight: '500',
   },
   summaryValue: {
     fontSize: 14,
-    color: '#FFFFFF',
+    color: colors.mode === 'light' ? colors.text : '#FFFFFF',
     fontWeight: '600',
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: colors.mode === 'light' ? colors.borderLight : 'rgba(255,255,255,0.06)',
   },
 
   // Action Buttons
@@ -646,7 +782,7 @@ const styles = StyleSheet.create({
   },
   actionCard: {
     flex: 1,
-    backgroundColor: '#141414',
+    backgroundColor: colors.mode === 'light' ? colors.surface : '#141414',
     borderRadius: borderRadii.lg,
     padding: spacing.md,
     minHeight: 108,
@@ -656,27 +792,27 @@ const styles = StyleSheet.create({
     height: 26,
     borderRadius: 13,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: colors.mode === 'light' ? colors.borderLight : 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   actionSub: {
     fontSize: 10,
-    color: '#6E6E73',
+    color: colors.mode === 'light' ? colors.textMuted : '#6E6E73',
     fontWeight: '500',
     marginTop: 'auto',
     paddingTop: spacing.md,
   },
   actionTitle: {
     fontSize: 13,
-    color: '#FFFFFF',
+    color: colors.mode === 'light' ? colors.text : '#FFFFFF',
     fontWeight: '600',
     marginTop: 3,
   },
 
   // Recent Transactions
   recentCard: {
-    backgroundColor: '#141414',
+    backgroundColor: colors.mode === 'light' ? colors.surface : '#141414',
     borderRadius: borderRadii.xl,
     padding: spacing.lg,
     marginBottom: spacing.lg,
@@ -689,12 +825,12 @@ const styles = StyleSheet.create({
   },
   recentTitle: {
     fontSize: 15,
-    color: '#FFFFFF',
+    color: colors.mode === 'light' ? colors.text : '#FFFFFF',
     fontWeight: '600',
   },
   recentSeeAll: {
     fontSize: 12,
-    color: '#8E8E93',
+    color: colors.mode === 'light' ? colors.textMuted : '#8E8E93',
     fontWeight: '500',
   },
   txnRow: {
@@ -705,7 +841,7 @@ const styles = StyleSheet.create({
   },
   txnDivider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: colors.mode === 'light' ? colors.border : 'rgba(255,255,255,0.05)',
   },
   txnIconBg: {
     width: 36,
@@ -721,12 +857,12 @@ const styles = StyleSheet.create({
   },
   txnLabel: {
     fontSize: 14,
-    color: '#FFFFFF',
+    color: colors.mode === 'light' ? colors.text : '#FFFFFF',
     fontWeight: '500',
   },
   txnSub: {
     fontSize: 11,
-    color: '#6E6E73',
+    color: colors.mode === 'light' ? colors.textMuted : '#6E6E73',
     fontWeight: '400',
   },
   txnRight: {
@@ -739,20 +875,20 @@ const styles = StyleSheet.create({
   },
   txnDate: {
     fontSize: 11,
-    color: '#6E6E73',
+    color: colors.mode === 'light' ? colors.textMuted : '#6E6E73',
     fontWeight: '400',
   },
 
   // Chart
   chartCard: {
-    backgroundColor: '#141414',
+    backgroundColor: colors.mode === 'light' ? colors.surface : '#141414',
     borderRadius: borderRadii.xl,
     padding: spacing.lg,
     marginBottom: spacing.md,
   },
   chartTitle: {
     fontSize: 15,
-    color: '#FFFFFF',
+    color: colors.mode === 'light' ? colors.text : '#FFFFFF',
     fontWeight: '600',
     marginBottom: spacing.lg,
   },
@@ -769,14 +905,14 @@ const styles = StyleSheet.create({
   },
   barPercent: {
     fontSize: 9,
-    color: '#8E8E93',
+    color: colors.mode === 'light' ? colors.textMuted : '#8E8E93',
     marginBottom: 6,
     fontWeight: '500',
   },
   barTrack: {
     width: 42,
     height: 96,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: colors.mode === 'light' ? colors.cardDark : '#1C1C1E',
     borderRadius: 12,
     justifyContent: 'flex-end',
     overflow: 'hidden',
@@ -806,13 +942,13 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontSize: 11,
-    color: '#CCCCCC',
+    color: colors.mode === 'light' ? colors.textMuted : '#CCCCCC',
     fontWeight: '500',
     flex: 1,
   },
   emptyChart: {
     fontSize: 13,
-    color: '#6E6E73',
+    color: colors.mode === 'light' ? colors.textMuted : '#6E6E73',
     textAlign: 'center',
     paddingVertical: spacing.xl,
   },
@@ -826,7 +962,7 @@ const styles = StyleSheet.create({
   otherCatCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#141414',
+    backgroundColor: colors.mode === 'light' ? colors.surface : '#141414',
     borderRadius: borderRadii.md,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
@@ -845,13 +981,13 @@ const styles = StyleSheet.create({
   },
   otherCatName: {
     fontSize: 12,
-    color: '#8E8E93',
+    color: colors.mode === 'light' ? colors.textMuted : '#8E8E93',
     fontWeight: '500',
     marginBottom: 2,
   },
   otherCatAmount: {
     fontSize: 13,
-    color: '#FFFFFF',
+    color: colors.mode === 'light' ? colors.text : '#FFFFFF',
     fontWeight: '600',
   },
 });

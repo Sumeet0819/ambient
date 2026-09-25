@@ -60,6 +60,14 @@ export const uploadReceiptOCR = createAsyncThunk(
   }
 );
 
+export const createTransaction = createAsyncThunk(
+  'transactions/createTransaction',
+  async (params: Partial<Transaction>) => {
+    const response = await api.post('/transactions', params);
+    return response.data.data as Transaction;
+  }
+);
+
 const transactionsSlice = createSlice({
   name: 'transactions',
   initialState,
@@ -108,6 +116,18 @@ const transactionsSlice = createSlice({
       .addCase(uploadReceiptOCR.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to process receipt image';
+      })
+      // Create Transaction
+      .addCase(createTransaction.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(createTransaction.fulfilled, (state, action) => {
+        state.loading = false;
+        state.items = [action.payload, ...state.items];
+      })
+      .addCase(createTransaction.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to create transaction';
       });
   },
 });

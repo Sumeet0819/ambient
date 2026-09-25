@@ -58,8 +58,8 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
             btnColor = 'rgba(255, 107, 107, 0.15)';
             textColor = colors.accentSecondary; // Red
           } else {
-            btnColor = colors.accent;
-            textColor = '#000000'; // Black text on neon green for high contrast
+            btnColor = colors.primary;
+            textColor = colors.textInverse;
           }
 
           return (
@@ -87,6 +87,8 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
     );
   };
 
+  const styles = getStyles(colors);
+
   return (
     <AlertContext.Provider value={{ showAlert, hideAlert }}>
       {children}
@@ -105,19 +107,12 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
                 animate={{ scale: 1, opacity: 1, translateY: 0 }}
                 exit={{ scale: 0.95, opacity: 0, translateY: 10 }}
                 transition={{ type: 'timing', duration: 250 }}
-                style={[
-                  styles.modalBox, 
-                  { 
-                    backgroundColor: colors.cardDark,
-                    borderColor: 'rgba(255, 255, 255, 0.05)',
-                    borderWidth: 1
-                  }
-                ]}
+                style={styles.modalBox}
               >
                 <View style={styles.textContainer}>
-                  <Text style={[styles.title, { color: colors.primary }]}>{alertConfig.title}</Text>
+                  <Text style={styles.title}>{alertConfig.title}</Text>
                   {alertConfig.message && (
-                    <Text style={[styles.message, { color: colors.textMuted }]}>{alertConfig.message}</Text>
+                    <Text style={styles.message}>{alertConfig.message}</Text>
                   )}
                 </View>
                 {renderButtons()}
@@ -130,10 +125,10 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backgroundColor: colors.mode === 'light' ? 'rgba(0, 0, 0, 0.4)' : 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.xl,
@@ -141,43 +136,51 @@ const styles = StyleSheet.create({
   modalBox: {
     width: '100%',
     maxWidth: 340,
+    backgroundColor: colors.mode === 'light' ? colors.surface : colors.cardDark,
     borderRadius: borderRadii.xl,
-    padding: spacing.lg,
-    elevation: 20,
+    padding: spacing.xl,
+    paddingTop: spacing.xxl,
+    paddingBottom: spacing.xl,
+    elevation: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: colors.mode === 'light' ? 0.15 : 0.5,
+    shadowRadius: 24,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.mode === 'light' ? colors.borderLight : 'rgba(255, 255, 255, 0.05)',
   },
   textContainer: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.xxl,
     alignItems: 'center',
-    paddingHorizontal: spacing.sm,
   },
   title: {
     ...typography.heading3,
+    color: colors.mode === 'light' ? colors.text : colors.primary,
     fontWeight: '700',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
     textAlign: 'center',
   },
   message: {
     ...typography.bodyMedium,
+    color: colors.mode === 'light' ? colors.textMuted : 'rgba(255,255,255,0.7)',
     textAlign: 'center',
     lineHeight: 22,
   },
   buttonContainer: {
-    gap: spacing.sm,
+    gap: spacing.md,
+    marginTop: spacing.sm,
   },
   button: {
-    paddingVertical: spacing.md,
+    paddingVertical: 16,
     paddingHorizontal: spacing.lg,
-    borderRadius: borderRadii.md,
+    borderRadius: borderRadii.pill,
     justifyContent: 'center',
     alignItems: 'center',
   },
   buttonText: {
-    ...typography.bodyMedium,
+    fontSize: 16,
     fontWeight: '600',
+    letterSpacing: 0.3,
   },
 });

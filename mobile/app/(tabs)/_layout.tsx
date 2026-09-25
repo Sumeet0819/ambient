@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, User, Calendar, FileText } from 'lucide-react-native';
+import { Home, User, Calendar, FileText, PieChart } from 'lucide-react-native';
 import { borderRadii, spacing, useThemeColors } from '../../src/constants/theme';
 import { View, StyleSheet, Platform, useWindowDimensions } from 'react-native';
 
@@ -46,12 +46,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, focused }) => (
-            <View style={[styles.iconContainer, focused && styles.activeIconContainer]}>
-              <User size={24} color={color} />
-            </View>
-          ),
+          href: null,
         }}
       />
       <Tabs.Screen
@@ -69,13 +64,13 @@ const getStyles = (colors: any, screenWidth: number) => StyleSheet.create({
     position: 'absolute',
     bottom: Platform.OS === 'ios' ? 32 : 24,
     marginHorizontal: (screenWidth - TAB_BAR_WIDTH) / 2,
-    backgroundColor: '#141414', // Deep dark to match other cards
+    backgroundColor: colors.mode === 'light' ? colors.surface : '#141414',
     borderRadius: 36, // Strict pill shape
     height: 72,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)', // Glass border
+    borderColor: colors.mode === 'light' ? colors.border : 'rgba(255,255,255,0.05)',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
+    borderTopColor: colors.mode === 'light' ? colors.border : 'rgba(255,255,255,0.05)',
     elevation: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },

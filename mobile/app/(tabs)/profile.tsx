@@ -73,10 +73,7 @@ export default function ProfileScreen() {
   const [phoneSaving, setPhoneSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
 
-  // Switches for the new UI
-  const [faceId, setFaceId] = useState(true);
-  const [showCoins, setShowCoins] = useState(false);
-  const [incognito, setIncognito] = useState(false);
+
 
   useEffect(() => {
     dispatch(fetchProfile());
@@ -198,7 +195,7 @@ export default function ProfileScreen() {
                   onPress={() => dispatch(setThemeMode('light'))}
                   activeOpacity={0.8}
                 >
-                  <Sun size={28} color="#FFFFFF" />
+                  <Sun size={28} color={colors.mode === 'light' ? colors.text : '#FFFFFF'} />
                   <Text style={styles.appearanceText}>Light</Text>
                   {themeMode === 'light' && <View style={styles.appearanceActiveDot} />}
                 </TouchableOpacity>
@@ -208,7 +205,7 @@ export default function ProfileScreen() {
                   onPress={() => dispatch(setThemeMode('dark'))}
                   activeOpacity={0.8}
                 >
-                  <Moon size={28} color="#FFFFFF" />
+                  <Moon size={28} color={colors.mode === 'light' ? colors.text : '#FFFFFF'} />
                   <Text style={styles.appearanceText}>Dark</Text>
                   {themeMode === 'dark' && <View style={styles.appearanceActiveDot} />}
                 </TouchableOpacity>
@@ -218,14 +215,14 @@ export default function ProfileScreen() {
                   onPress={() => dispatch(setThemeMode('system'))}
                   activeOpacity={0.8}
                 >
-                  <Smartphone size={28} color="#FFFFFF" />
+                  <Smartphone size={28} color={colors.mode === 'light' ? colors.text : '#FFFFFF'} />
                   <Text style={styles.appearanceText}>System</Text>
                   {themeMode === 'system' && <View style={styles.appearanceActiveDot} />}
                 </TouchableOpacity>
               </View>
 
               <View style={styles.infoCard}>
-                <Smartphone size={16} color="rgba(255,255,255,0.55)" style={{ marginRight: 8 }} />
+                <Smartphone size={16} color={colors.mode === 'light' ? colors.textMuted : 'rgba(255,255,255,0.55)'} style={{ marginRight: 8 }} />
                 <Text style={styles.infoText}>System mode follows your device's current appearance setting.</Text>
               </View>
 
@@ -262,7 +259,7 @@ export default function ProfileScreen() {
                   <Text style={profile?.phone_number ? styles.rowBadgeText : [styles.rowBadgeText, { color: colors.textMuted }]}>
                     {profile?.phone_number ? profile.phone_number : 'Not linked'}
                   </Text>
-                  {phoneSaving ? <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: 8 }} /> : <ChevronRight size={20} color={'rgba(255,255,255,0.3)'} style={{ marginLeft: 8 }} />}
+                  {phoneSaving ? <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: 8 }} /> : <ChevronRight size={20} color={colors.mode === 'light' ? colors.borderLight : 'rgba(255,255,255,0.3)'} style={{ marginLeft: 8 }} />}
                 </TouchableOpacity>
               </View>
 
@@ -270,35 +267,6 @@ export default function ProfileScreen() {
               <Text style={[styles.sectionTitle, { marginTop: spacing.xxl }]}>PREFERENCES</Text>
 
               <View style={styles.settingsGroup}>
-                <View style={styles.settingRow}>
-                  <Fingerprint size={20} color="#8E8E93" style={{ marginRight: 12 }} />
-                  <View style={styles.rowTextCol}>
-                    <Text style={styles.rowTextValue}>Allow Face ID</Text>
-                  </View>
-                  <CustomSwitch value={faceId} onValueChange={setFaceId} activeColor="#FFFFFF" inactiveColor="#333333" />
-                </View>
-
-                <View style={styles.divider} />
-
-                <View style={styles.settingRow}>
-                  <Coins size={20} color="#8E8E93" style={{ marginRight: 12 }} />
-                  <View style={styles.rowTextCol}>
-                    <Text style={styles.rowTextValue}>Show Decimals</Text>
-                  </View>
-                  <CustomSwitch value={showCoins} onValueChange={setShowCoins} activeColor="#FFFFFF" inactiveColor="#333333" />
-                </View>
-
-                <View style={styles.divider} />
-
-                <View style={styles.settingRow}>
-                  <Ghost size={20} color="#8E8E93" style={{ marginRight: 12 }} />
-                  <View style={styles.rowTextCol}>
-                    <Text style={styles.rowTextValue}>Incognito Mode</Text>
-                  </View>
-                  <CustomSwitch value={incognito} onValueChange={setIncognito} activeColor="#FFFFFF" inactiveColor="#333333" />
-                </View>
-
-                <View style={styles.divider} />
 
                 <TouchableOpacity style={styles.settingRow} onPress={handleResetTransactions} activeOpacity={0.7}>
                   <Database size={20} color={colors.accentSecondary} style={{ marginRight: 12 }} />
@@ -330,7 +298,7 @@ export default function ProfileScreen() {
 }
 
 const getStyles = (colors: any) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000000' },
+  container: { flex: 1, backgroundColor: colors.mode === 'light' ? colors.background : '#000000' },
   center: { justifyContent: 'center', alignItems: 'center' },
 
   topSection: {
@@ -341,7 +309,7 @@ const getStyles = (colors: any) => StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20,
-    color: '#FFFFFF',
+    color: colors.mode === 'light' ? colors.text : '#FFFFFF',
     fontWeight: '700',
   },
 
@@ -352,7 +320,7 @@ const getStyles = (colors: any) => StyleSheet.create({
 
   sectionTitle: {
     fontSize: 13,
-    color: '#FFFFFF',
+    color: colors.mode === 'light' ? colors.textMuted : '#FFFFFF',
     fontWeight: '600',
     marginBottom: spacing.md,
     marginLeft: spacing.sm,
@@ -365,7 +333,7 @@ const getStyles = (colors: any) => StyleSheet.create({
   },
   appearanceCard: {
     flex: 1,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: colors.mode === 'light' ? colors.surface : '#1C1C1E',
     borderRadius: 24,
     padding: spacing.lg,
     marginHorizontal: 4,
@@ -374,13 +342,18 @@ const getStyles = (colors: any) => StyleSheet.create({
     borderWidth: 1.5,
     borderColor: 'transparent',
     aspectRatio: 1,
+    shadowColor: colors.mode === 'light' ? '#000' : 'transparent',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: colors.mode === 'light' ? 0.03 : 0,
+    shadowRadius: 24,
+    elevation: colors.mode === 'light' ? 1 : 0,
   },
   appearanceCardActive: {
-    borderColor: '#FFFFFF',
+    borderColor: colors.mode === 'light' ? colors.primary : '#FFFFFF',
   },
   appearanceText: {
     ...typography.label,
-    color: '#FFFFFF',
+    color: colors.mode === 'light' ? colors.text : '#FFFFFF',
     marginTop: spacing.sm,
     fontWeight: '500',
   },
@@ -388,7 +361,7 @@ const getStyles = (colors: any) => StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.mode === 'light' ? colors.primary : '#FFFFFF',
     position: 'absolute',
     bottom: 12,
   },
@@ -396,21 +369,31 @@ const getStyles = (colors: any) => StyleSheet.create({
   infoCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1C1C1E',
+    backgroundColor: colors.mode === 'light' ? colors.surface : '#1C1C1E',
     borderRadius: 24,
     padding: spacing.lg,
+    shadowColor: colors.mode === 'light' ? '#000' : 'transparent',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: colors.mode === 'light' ? 0.03 : 0,
+    shadowRadius: 24,
+    elevation: colors.mode === 'light' ? 1 : 0,
   },
   infoText: {
     ...typography.bodySmall,
-    color: 'rgba(255,255,255,0.55)',
+    color: colors.mode === 'light' ? colors.textMuted : 'rgba(255,255,255,0.55)',
     flex: 1,
     lineHeight: 20,
   },
 
   settingsGroup: {
-    backgroundColor: '#1C1C1E',
+    backgroundColor: colors.mode === 'light' ? colors.surface : '#1C1C1E',
     borderRadius: 24,
     overflow: 'hidden',
+    shadowColor: colors.mode === 'light' ? '#000' : 'transparent',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: colors.mode === 'light' ? 0.03 : 0,
+    shadowRadius: 24,
+    elevation: colors.mode === 'light' ? 1 : 0,
   },
   settingRow: {
     flexDirection: 'row',
@@ -424,12 +407,12 @@ const getStyles = (colors: any) => StyleSheet.create({
   },
   rowTextValue: {
     fontSize: 15,
-    color: '#FFFFFF',
+    color: colors.mode === 'light' ? colors.text : '#FFFFFF',
     fontWeight: '500',
   },
   rowInput: {
     fontSize: 15,
-    color: 'rgba(255,255,255,0.55)',
+    color: colors.mode === 'light' ? colors.textMuted : 'rgba(255,255,255,0.55)',
     fontWeight: '500',
     padding: 0,
     margin: 0,
@@ -437,12 +420,12 @@ const getStyles = (colors: any) => StyleSheet.create({
   },
   rowBadgeText: {
     fontSize: 15,
-    color: 'rgba(255,255,255,0.55)',
+    color: colors.mode === 'light' ? colors.textMuted : 'rgba(255,255,255,0.55)',
     fontWeight: '500',
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: colors.mode === 'light' ? colors.borderLight : 'rgba(255,255,255,0.05)',
     marginHorizontal: spacing.lg,
   },
 
@@ -452,7 +435,7 @@ const getStyles = (colors: any) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.lg,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: colors.mode === 'light' ? colors.cardDark : '#1C1C1E',
     borderRadius: 24,
   },
   minimalLogoutText: {
@@ -462,10 +445,10 @@ const getStyles = (colors: any) => StyleSheet.create({
   },
 
   btnRetry: {
-    backgroundColor: '#C1FFD7',
+    backgroundColor: colors.primary,
     padding: spacing.md,
     borderRadius: borderRadii.pill,
     paddingHorizontal: spacing.xl,
   },
-  btnRetryText: { color: '#000000', ...typography.bodyMedium, fontWeight: '600' },
+  btnRetryText: { color: colors.mode === 'light' ? '#FFFFFF' : '#000000', ...typography.bodyMedium, fontWeight: '600' },
 });
